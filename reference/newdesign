@@ -1,0 +1,176 @@
+---
+name: Neon Kinetic
+colors:
+  surface: '#131318'
+  surface-dim: '#131318'
+  surface-bright: '#39383e'
+  surface-container-lowest: '#0e0e13'
+  surface-container-low: '#1b1b20'
+  surface-container: '#1f1f24'
+  surface-container-high: '#2a292f'
+  surface-container-highest: '#35343a'
+  on-surface: '#e4e1e9'
+  on-surface-variant: '#b9cacb'
+  inverse-surface: '#e4e1e9'
+  inverse-on-surface: '#303035'
+  outline: '#849495'
+  outline-variant: '#3b494b'
+  surface-tint: '#00dbe9'
+  primary: '#dbfcff'
+  on-primary: '#00363a'
+  primary-container: '#00f0ff'
+  on-primary-container: '#006970'
+  inverse-primary: '#006970'
+  secondary: '#fface8'
+  on-secondary: '#5e0053'
+  secondary-container: '#ff24e4'
+  on-secondary-container: '#520049'
+  tertiary: '#e1ffd1'
+  on-tertiary: '#053900'
+  tertiary-container: '#33fb0a'
+  on-tertiary-container: '#106e00'
+  error: '#ffb4ab'
+  on-error: '#690005'
+  error-container: '#93000a'
+  on-error-container: '#ffdad6'
+  primary-fixed: '#7df4ff'
+  primary-fixed-dim: '#00dbe9'
+  on-primary-fixed: '#002022'
+  on-primary-fixed-variant: '#004f54'
+  secondary-fixed: '#ffd7f0'
+  secondary-fixed-dim: '#fface8'
+  on-secondary-fixed: '#3a0033'
+  on-secondary-fixed-variant: '#840076'
+  tertiary-fixed: '#79ff5b'
+  tertiary-fixed-dim: '#2ae500'
+  on-tertiary-fixed: '#022100'
+  on-tertiary-fixed-variant: '#095300'
+  background: '#131318'
+  on-background: '#e4e1e9'
+  surface-variant: '#35343a'
+typography:
+  display-lg:
+    fontFamily: Space Grotesk
+    fontSize: 72px
+    fontWeight: '700'
+    lineHeight: 80px
+    letterSpacing: -0.02em
+  headline-lg:
+    fontFamily: Space Grotesk
+    fontSize: 48px
+    fontWeight: '600'
+    lineHeight: 56px
+    letterSpacing: -0.01em
+  headline-md:
+    fontFamily: Space Grotesk
+    fontSize: 32px
+    fontWeight: '600'
+    lineHeight: 40px
+  body-lg:
+    fontFamily: Geist
+    fontSize: 18px
+    fontWeight: '400'
+    lineHeight: 28px
+  body-md:
+    fontFamily: Geist
+    fontSize: 16px
+    fontWeight: '400'
+    lineHeight: 24px
+  label-md:
+    fontFamily: JetBrains Mono
+    fontSize: 14px
+    fontWeight: '500'
+    lineHeight: 20px
+    letterSpacing: 0.05em
+  label-sm:
+    fontFamily: JetBrains Mono
+    fontSize: 12px
+    fontWeight: '500'
+    lineHeight: 16px
+    letterSpacing: 0.1em
+rounded:
+  sm: 0.125rem
+  DEFAULT: 0.25rem
+  md: 0.375rem
+  lg: 0.5rem
+  xl: 0.75rem
+  full: 9999px
+spacing:
+  base: 8px
+  xs: 4px
+  sm: 12px
+  md: 24px
+  lg: 48px
+  xl: 80px
+  gutter: 24px
+  margin-desktop: 64px
+---
+
+## Brand & Style
+
+The design system is engineered for high-energy, high-fidelity desktop environments where visual impact and futuristic aesthetics are paramount. It targets a tech-forward audience—gamers, creative technologists, and digital pioneers—who seek an immersive, sensory-rich interface. 
+
+The aesthetic is a hybrid of **Glassmorphism** and **Cyber-Retro**, defined by "living" light. The UI should evoke a sense of digital electricity, using light not just as an accent, but as a structural element. Backgrounds remain deep and light-absorbent to allow vibrant neon components to achieve maximum luminosity. The emotional response is one of adrenaline, precision, and cutting-edge innovation.
+
+## Colors
+
+The palette is built on a "Void and Voltage" philosophy. The core is an obsidian neutral background that provides the necessary contrast for the four hyper-saturated neon accents.
+
+- **Primary (Electric Blue):** Used for primary actions and "active" energy states.
+- **Secondary (Hot Pink):** Used for highlighting, notifications, and secondary interactive elements.
+- **Tertiary (Acid Green):** Reserved for success states, data visualizations, and "go" signals.
+- **Quaternary (Ultraviolet):** Used for depth, specialized categorization, and premium feature sets.
+
+All neon colors must be applied with a 20-30% opacity "glow" shadow of the same hue to simulate light emission. Neutral shades are tiered from deep obsidian to a slightly lighter slate to create structural depth.
+
+## Typography
+
+Typography in this design system balances geometric futurism with technical precision. 
+
+**Space Grotesk** is the voice of the system, used for high-impact headlines. It should often be paired with a subtle text-shadow of the primary or secondary color at very low opacity to mimic a screen glow. **Geist** provides a clean, ultra-modern sans-serif experience for body copy, ensuring legibility against dark backgrounds. **JetBrains Mono** is utilized for labels, metadata, and micro-copy, reinforcing the high-tech, developer-centric feel. 
+
+For the "Display-LG" role, consider using `text-transform: uppercase` to maximize the architectural feel of the characters.
+
+## Layout & Spacing
+
+This design system utilizes a **Fixed Grid** model for desktop to maintain the integrity of complex, high-fidelity layouts. The standard is a 12-column grid with a 1200px max-width container, though ultra-wide displays may utilize side-panels that stick to the viewport edges.
+
+Spacing follows a strict 8px base unit. Negative space is used aggressively to prevent the neon elements from becoming visually overwhelming. Large margins (64px+) are encouraged between major content sections to allow the "void" background to settle the user's eye.
+
+On mobile, the grid collapses to 4 columns with 16px margins, and neon glows are slightly reduced in radius to maintain performance and clarity on smaller screens.
+
+## Elevation & Depth
+
+Depth is achieved through **Glassmorphism** and **Light Emission** rather than traditional shadows.
+
+1.  **The Base:** Obsidian `#0D0D12`.
+2.  **Tier 1 (Cards/Panels):** Semi-transparent `#16161E` (80% opacity) with a 12px Backdrop Blur. A 1px border at 20% white opacity provides a "glass" edge.
+3.  **Tier 2 (Floating/Interactive):** Same as Tier 1, but with a 1px solid border using the Primary or Secondary neon color.
+4.  **Active State:** Components gain a "Neon Underglow"—an outer shadow with a 15px-30px blur using the component's accent color at 40% opacity.
+
+The higher the elevation, the more "saturated" the backdrop blur becomes, and the brighter the border glow.
+
+## Shapes
+
+The shape language is "Precision-Soft." While the overall vibe is technical and sharp, a slight 4px radius (`roundedness: 1`) is applied to all components to prevent the UI from feeling hostile. 
+
+- **Containers:** Use `rounded-sm` (4px) for most panels.
+- **Buttons:** Use `rounded-sm` for a "modular" look, or 0px for a more "brutalist-tech" feel if the specific context requires extreme aggression.
+- **Decorative Elements:** Use 45-degree clipped corners (chamfers) on large section headers to reinforce the futuristic theme.
+
+## Components
+
+**Buttons:**
+Primary buttons feature a solid Primary color background with black text. Hover states trigger a massive glow effect (`box-shadow: 0 0 20px var(primary)`). Secondary buttons use a "Ghost" style: transparent background, neon border, and neon text.
+
+**Input Fields:**
+Dark backgrounds with a 1px bottom-border only. When focused, the bottom border transitions to a neon glow, and a subtle vertical gradient (5% opacity neon) fills the input height.
+
+**Cards:**
+Constructed with the Tier 1 Glassmorphism style. Titles inside cards should use **JetBrains Mono** in all-caps to maintain the technical aesthetic.
+
+**Chips/Tags:**
+Small, high-contrast pills. Background is 10% opacity of the accent color, border is 100% opacity of the same color. Text is always white or the accent color itself.
+
+**Glow Dividers:**
+Instead of solid lines, use 1px gradients that fade to transparent at the ends, with a subtle 2px blur to simulate a laser line.

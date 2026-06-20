@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #131318;
+  --color-surface-dim: #131318;
+  --color-surface-bright: #39383e;
+  --color-surface-container-lowest: #0e0e13;
+  --color-surface-container-low: #1b1b20;
+  --color-surface-container: #1f1f24;
+  --color-surface-container-high: #2a292f;
+  --color-surface-container-highest: #35343a;
+  --color-on-surface: #e4e1e9;
+  --color-on-surface-variant: #b9cacb;
+  --color-inverse-surface: #e4e1e9;
+  --color-inverse-on-surface: #303035;
+  --color-outline: #849495;
+  --color-outline-variant: #3b494b;
+  --color-surface-tint: #00dbe9;
+  --color-primary: #dbfcff;
+  --color-on-primary: #00363a;
+  --color-primary-container: #00f0ff;
+  --color-on-primary-container: #006970;
+  --color-inverse-primary: #006970;
+  --color-secondary: #fface8;
+  --color-on-secondary: #5e0053;
+  --color-secondary-container: #ff24e4;
+  --color-on-secondary-container: #520049;
+  --color-tertiary: #e1ffd1;
+  --color-on-tertiary: #053900;
+  --color-tertiary-container: #33fb0a;
+  --color-on-tertiary-container: #106e00;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-primary-fixed: #7df4ff;
+  --color-primary-fixed-dim: #00dbe9;
+  --color-on-primary-fixed: #002022;
+  --color-on-primary-fixed-variant: #004f54;
+  --color-secondary-fixed: #ffd7f0;
+  --color-secondary-fixed-dim: #fface8;
+  --color-on-secondary-fixed: #3a0033;
+  --color-on-secondary-fixed-variant: #840076;
+  --color-tertiary-fixed: #79ff5b;
+  --color-tertiary-fixed-dim: #2ae500;
+  --color-on-tertiary-fixed: #022100;
+  --color-on-tertiary-fixed-variant: #095300;
+  --color-background: #131318;
+  --color-on-background: #e4e1e9;
+  --color-surface-variant: #35343a;
+
+  --spacing-margin-mobile: 16px;
+  --spacing-gutter: 24px;
+  --spacing-stack-sm: 8px;
+  --spacing-unit: 4px;
+  --spacing-stack-md: 16px;
+  --spacing-margin-desktop: 32px;
+  --spacing-container-max-width: 1440px;
+  --spacing-stack-lg: 32px;
+}
+
+body {
+  background-color: #131318;
+  font-family: 'Inter', sans-serif;
+  color: #e4e1e9;
+}
+
+.font-display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Glassmorphism - Tier 1: Cards/Panels */
+.glass-card {
+  background: rgba(31, 31, 36, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Glassmorphism - Tier 2: Floating/Interactive */
+.glass-card-elevated {
+  background: rgba(31, 31, 36, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 219, 233, 0.3);
+}
+
+/* Neon Glow Effects */
+.neon-glow-primary {
+  box-shadow: 0 0 20px rgba(0, 219, 233, 0.4), 0 0 40px rgba(0, 219, 233, 0.2);
+}
+
+.neon-glow-primary:hover {
+  box-shadow: 0 0 30px rgba(0, 219, 233, 0.6), 0 0 60px rgba(0, 219, 233, 0.3);
+}
+
+.neon-glow-secondary {
+  box-shadow: 0 0 20px rgba(255, 36, 228, 0.4), 0 0 40px rgba(255, 36, 228, 0.2);
+}
+
+.neon-glow-secondary:hover {
+  box-shadow: 0 0 30px rgba(255, 36, 228, 0.6), 0 0 60px rgba(255, 36, 228, 0.3);
+}
+
+.neon-glow-tertiary {
+  box-shadow: 0 0 20px rgba(51, 251, 10, 0.4), 0 0 40px rgba(51, 251, 10, 0.2);
+}
+
+.neon-glow-tertiary:hover {
+  box-shadow: 0 0 30px rgba(51, 251, 10, 0.6), 0 0 60px rgba(51, 251, 10, 0.3);
+}
+
+/* Neon Border */
+.neon-border-primary {
+  border: 1px solid #00dbe9;
+  box-shadow: inset 0 0 10px rgba(0, 219, 233, 0.2);
+}
+
+/* Hide stale profile action button while source is cleaned up */
+.bg-\[\#2a292f\].px-6.py-4.flex.justify-end > button {
+  display: none !important;
+}
+
+.neon-border-secondary {
+  border: 1px solid #ff24e4;
+  box-shadow: inset 0 0 10px rgba(255, 36, 228, 0.2);
+}
+
+/* Login Card */
+.login-card {
+  background: rgba(31, 31, 36, 0.8);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 219, 233, 0.2);
+  box-shadow: 0 0 30px rgba(0, 219, 233, 0.15);
+}
+
+/* Dark pattern background */
+.bg-pattern {
+  background-color: #131318;
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(0, 219, 233, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 36, 228, 0.03) 0%, transparent 50%);
+}
+
+.neon-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #3b494b;
+  border-radius: 0;
+  transition: all 0.3s ease;
+}
+
+.neon-input:focus {
+  border-bottom-color: #00f0ff;
+  box-shadow: 0 4px 12px -4px rgba(0, 240, 255, 0.15);
+  background: linear-gradient(to bottom, transparent, rgba(0, 240, 255, 0.03));
+}
+
+.optical-overlay {
+  background-image: radial-gradient(circle, rgba(0, 240, 255, 0.15) 1px, transparent 1px);
+  background-size: 24px 24px;
+  animation: scan 60s linear infinite;
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+}
+
+.scanline-overlay {
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 240, 255, 0.05) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0));
+  background-size: 100% 4px, 3px 100%;
+  pointer-events: none;
+}
+
+.flicker-logo {
+  animation: flicker 4s infinite alternate;
+}
+
+@keyframes scan {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 100%;
+  }
+}
+
+@keyframes flicker {
+  0%,
+  18%,
+  22%,
+  25%,
+  53%,
+  57%,
+  100% {
+    text-shadow: 0 0 4px #00f0ff, 0 0 10px #00f0ff, 0 0 20px rgba(0, 240, 255, 0.5);
+    opacity: 1;
+  }
+
+  20%,
+  24%,
+  55% {
+    text-shadow: none;
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flicker-logo,
+  .optical-overlay {
+    animation: none;
+  }
+}
