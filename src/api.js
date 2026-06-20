@@ -1,4 +1,6 @@
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://127.0.0.1:8000/api'
+  : 'https://resigntrackbackend.onrender.com/api';
 
 // Helper wrapper to append Bearer token and handle errors
 async function request(url, options = {}) {
@@ -18,7 +20,7 @@ async function request(url, options = {}) {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
-    
+
     // Only reload/force log out if we actually tried to run an authenticated request
     if (token) {
       window.location.reload();
