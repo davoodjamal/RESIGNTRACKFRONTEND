@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Icon from '../Icon';
+import { createUser } from '../../api';
 
 const permissionOptions = [
   { id: 'resignations', label: 'Manage Resignations', desc: 'Approve or deny exit requests and oversee offboarding workflows.', defaultOn: true },
@@ -24,7 +25,7 @@ const initialFormState = {
   role: 'hr',
 };
 
-export default function CreateUserModal({ onClose, onNavigateUsers }) {
+export default function CreateUserModal({ onClose, onRefreshUsers, onNavigateUsers }) {
   const [step, setStep] = useState('form'); // 'form' | 'success'
   const [form, setForm] = useState(initialFormState);
   const [showPassword, setShowPassword] = useState(false);
@@ -123,21 +124,7 @@ export default function CreateUserModal({ onClose, onNavigateUsers }) {
         permissions: Object.keys(permissions).filter((key) => permissions[key]),
       };
 
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/users/', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.message || 'Unable to create user at this time.');
-      }
-
+      await createUser(payload);
       setStep('success');
     } catch (error) {
       setApiError(error.message || 'Unable to create user. Please try again.');
@@ -149,6 +136,7 @@ export default function CreateUserModal({ onClose, onNavigateUsers }) {
   const handleSuccessClose = () => {
     resetForm();
     onClose?.();
+    onRefreshUsers?.();
     onNavigateUsers?.();
   };
 

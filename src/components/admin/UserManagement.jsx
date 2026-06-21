@@ -4,7 +4,7 @@ import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import DeleteUserModal from './DeleteUserModal';
 
-export default function UserManagement({ users, onSetActiveTab }) {
+export default function UserManagement({ users, onRefreshUsers, onSetActiveTab }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All Roles');
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -168,6 +168,7 @@ export default function UserManagement({ users, onSetActiveTab }) {
       {showCreateUser && (
         <CreateUserModal
           onClose={() => setShowCreateUser(false)}
+          onRefreshUsers={onRefreshUsers}
           onNavigateUsers={() => onSetActiveTab?.('users')}
         />
       )}
@@ -175,6 +176,7 @@ export default function UserManagement({ users, onSetActiveTab }) {
         <EditUserModal
           user={editingUser}
           onClose={() => setEditingUser(null)}
+          onRefreshUsers={onRefreshUsers}
         />
       )}
       {deletingUser && (

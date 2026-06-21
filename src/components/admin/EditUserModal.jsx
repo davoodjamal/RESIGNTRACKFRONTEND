@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Icon from '../Icon';
+import { updateUser } from '../../api';
 
 const permissionDefs = [
   { id: 'resignations', label: 'Manage Resignations', desc: 'Grant authority to approve or deny exit requests.', defaultOn: true },
@@ -18,7 +19,7 @@ const initialFormState = {
   role: 'employee',
 };
 
-export default function EditUserModal({ user, onClose, onNavigateUsers }) {
+export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigateUsers }) {
   const [step, setStep] = useState('form');
   const [form, setForm] = useState(initialFormState);
   const [showPassword, setShowPassword] = useState(false);
@@ -100,21 +101,7 @@ export default function EditUserModal({ user, onClose, onNavigateUsers }) {
         permissions: Object.keys(permissions).filter((key) => permissions[key]),
       };
 
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/users/${user?.id || ''}/`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.message || 'Unable to update user at this time.');
-      }
-
+      await updateUser(user.id, payload);
       setStep('success');
     } catch (error) {
       setApiError(error.message || 'Unable to update user. Please try again.');
@@ -126,6 +113,7 @@ export default function EditUserModal({ user, onClose, onNavigateUsers }) {
   const handleSuccessClose = () => {
     setStep('form');
     onClose?.();
+    onRefreshUsers?.();
     onNavigateUsers?.();
   };
 
