@@ -15,7 +15,9 @@ export default function EmployeePortal({
   resignations,
   onSubmitResignation,
   systemSettings,
-  onLogout
+  onLogout,
+  onUpdateProfile,
+  onSaveExitInterview
 }) {
   const employeeResignation = resignations.find(r => r.email === user.email);
   const [activeTab, setActiveTab] = useState(employeeResignation ? 'dashboard' : 'resignation');
@@ -64,16 +66,35 @@ export default function EmployeePortal({
           <ExitInterview 
             user={user} 
             resignation={employeeResignation} 
-            onSubmit={() => {
-              alert('Exit interview submitted successfully.');
-              setActiveTab('dashboard');
+            onSubmit={(feedback) => {
+              if (employeeResignation) {
+                onSaveExitInterview(employeeResignation.id, feedback);
+                alert('Exit interview submitted successfully.');
+                setActiveTab('dashboard');
+              } else {
+                alert('No active resignation found to attach exit interview.');
+              }
             }}
-            onSave={() => alert('Draft saved successfully.')}
+            onSave={(feedback) => {
+              if (employeeResignation) {
+                onSaveExitInterview(employeeResignation.id, feedback);
+                alert('Draft saved successfully.');
+              } else {
+                alert('No active resignation found to save draft.');
+              }
+            }}
           />
         );
       case 'profile':
         return profileView === 'edit-profile' ? (
-          <EditProfilePage user={user} onBack={() => setProfileView('profile')} />
+          <EditProfilePage 
+            user={user} 
+            onBack={() => setProfileView('profile')} 
+            onSaveProfile={(data) => {
+              onUpdateProfile(data);
+              setProfileView('profile');
+            }}
+          />
         ) : (
           <EmployeeProfile user={user} onEditProfile={() => setProfileView('edit-profile')} />
         );

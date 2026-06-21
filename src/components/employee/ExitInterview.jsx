@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '../Icon';
 
 const ratingQuestions = [
@@ -69,6 +69,15 @@ export default function ExitInterview({ user, resignation, onSave, onSubmit }) {
     recommend: '',
     rejoin: ''
   });
+
+  useEffect(() => {
+    if (resignation && resignation.exitFeedback) {
+      setFormData(prev => ({
+        ...prev,
+        ...resignation.exitFeedback
+      }));
+    }
+  }, [resignation]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
