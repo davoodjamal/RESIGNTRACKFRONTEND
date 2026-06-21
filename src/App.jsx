@@ -13,7 +13,10 @@ import {
   fetchSettings,
   updateSettings as apiUpdateSettings,
   fetchAuditLogs,
-  addAuditLog as apiAddAuditLog
+  addAuditLog as apiAddAuditLog,
+  fetchProfile,
+  updateProfile,
+  submitExitInterview
 } from './api';
 
 function App() {
@@ -76,14 +79,30 @@ function App() {
 
     const loadData = async () => {
       try {
-        const [settingsData, resignationsData, logsData] = await Promise.all([
+        const [settingsData, resignationsData, logsData, profileData] = await Promise.all([
           fetchSettings(),
           fetchResignations(),
           fetchAuditLogs(),
+          fetchProfile().catch(() => null),
         ]);
         setSystemSettings(settingsData);
         setResignations(resignationsData);
         setAuditLogs(logsData);
+        if (profileData) {
+          const updatedUser = {
+            ...user,
+            email: profileData.email || user.email,
+            username: profileData.username || user.username,
+            role: profileData.role || user.role,
+            fullName: profileData.fullName || profileData.full_name,
+            phone: profileData.phone,
+            dob: profileData.dob,
+            designation: profileData.designation,
+            address: profileData.address,
+          };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
 
         if (user.role === 'admin' || user.role === 'hr') {
           const usersData = await fetchUsers();
@@ -131,6 +150,38 @@ function App() {
       addAuditLog(`Exit request submitted: Employee [${createdResignation.email}] filed resignation (${createdResignation.reason}).`);
     } catch (err) {
       alert(err.message || 'Failed to submit resignation');
+    }
+  };
+
+  const handleUpdateProfile = async (profileData) => {
+    try {
+      const updated = await updateProfile(profileData);
+      const updatedUser = {
+        ...user,
+        email: updated.email || user.email,
+        username: updated.username || user.username,
+        fullName: updated.fullName || updated.full_name,
+        phone: updated.phone,
+        dob: updated.dob,
+        designation: updated.designation,
+        address: updated.address,
+      };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      addAuditLog(`User profile updated: [${user.email}].`);
+      alert('Profile updated successfully.');
+    } catch (err) {
+      alert(err.message || 'Failed to update profile');
+    }
+  };
+
+  const handleSaveExitInterview = async (resignationId, exitFeedback) => {
+    try {
+      const updated = await submitExitInterview(resignationId, exitFeedback);
+      setResignations(prev => prev.map(r => r.id === resignationId ? updated : r));
+      addAuditLog(`Exit interview feedback updated for [${updated.email}].`);
+    } catch (err) {
+      alert(err.message || 'Failed to save exit interview');
     }
   };
 
@@ -203,6 +254,8 @@ function App() {
         onSubmitResignation={handleSubmitResignation}
         systemSettings={systemSettings}
         onLogout={handleLogout}
+        onUpdateProfile={handleUpdateProfile}
+        onSaveExitInterview={handleSaveExitInterview}
       />
     );
   }

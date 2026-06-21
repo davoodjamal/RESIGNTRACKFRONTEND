@@ -272,13 +272,11 @@ export default function AssetManagement({ user, resignation }) {
               <tr className="border-b border-[#3b494b]">
                 <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Asset Details</th>
                 <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Serial Number</th>
-                <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Return Status</th>
-                <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider text-right">Action</th>
+                <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider text-right">Return Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#3b494b]">
               {assets.map((asset) => {
-                const actions = menuByStatus[asset.status] || [];
                 return (
                   <tr key={asset.id} className="hover:bg-[#2a292f] transition-colors group">
                     <td className="px-8 py-5">
@@ -295,7 +293,7 @@ export default function AssetManagement({ user, resignation }) {
                     <td className="px-8 py-5">
                       <code className="text-xs font-bold bg-[#2a292f] text-[#00dbe9] px-2.5 py-1.5 rounded-lg border border-[#3b494b]">{asset.id}</code>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-8 py-5 text-right">
                       {asset.status === 'In Progress' && (
                         <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#d8e2ff] text-[#001a42] border border-[#00dbe9]/20">
                           <span className="w-2 h-2 rounded-full bg-[#00dbe9]"></span>
@@ -326,34 +324,6 @@ export default function AssetManagement({ user, resignation }) {
                           Escalated
                         </span>
                       )}
-                    </td>
-                    <td className="px-8 py-5 text-right relative">
-                      <div className="flex justify-end gap-2">
-                        {allActions.map((act) => (
-                          <button
-                            key={act.action}
-                            onClick={() => setModal({ type: act.action, asset, value: act.action === 'notes' ? asset.notes || '' : act.action === 'evidence' ? asset.evidence || '' : '' })}
-                            title={act.label}
-                            className="p-2 rounded-full bg-[#2a292f] border border-[#3b494b] text-[#b9cacb] hover:text-[#00dbe9] hover:border-[#00dbe9] transition-all"
-                          >
-                            <Icon className="text-sm">{act.icon}</Icon>
-                          </button>
-                        ))}
-                        {actions.map((act) => (
-                          <button
-                            key={act.action}
-                            onClick={() => setModal({
-                              type: act.action === 'addNotes' ? 'notes' : act.action === 'uploadEvidence' ? 'evidence' : act.action === 'updateStatus' ? 'updateStatus' : 'confirm',
-                              asset,
-                              value: act.action === 'addNotes' ? asset.notes || '' : act.action === 'uploadEvidence' ? asset.evidence || '' : act.action === 'updateStatus' ? asset.status : act.action
-                            })}
-                            title={act.label}
-                            className="p-2 rounded-full bg-[#00dbe9]/10 border border-[#00dbe9]/30 text-[#00dbe9] hover:bg-[#00dbe9] hover:text-[#131318] transition-all"
-                          >
-                            <Icon className="text-sm">{act.icon}</Icon>
-                          </button>
-                        ))}
-                      </div>
                     </td>
                   </tr>
                 );

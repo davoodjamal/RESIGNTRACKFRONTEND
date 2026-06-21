@@ -1,6 +1,25 @@
+import { useState } from 'react';
 import Icon from '../Icon';
 
-export default function EditProfilePage({ user, onBack }) {
+export default function EditProfilePage({ user, onBack, onSaveProfile }) {
+  const [fullName, setFullName] = useState(user.fullName || user.username || '');
+  const [email, setEmail] = useState(user.email || '');
+  const [phone, setPhone] = useState(user.phone || '');
+  const [dob, setDob] = useState(user.dob || '');
+  const [designation, setDesignation] = useState(user.designation || '');
+  const [address, setAddress] = useState(user.address || '');
+
+  const handleSave = () => {
+    onSaveProfile({
+      fullName,
+      email,
+      phone,
+      dob: dob || null,
+      designation,
+      address
+    });
+  };
+
   return (
     <div className="mt-8 p-8 overflow-y-auto custom-scrollbar flex-1 animate-in fade-in slide-in-from-bottom-8 duration-500">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -45,7 +64,6 @@ export default function EditProfilePage({ user, onBack }) {
                 <p className="mt-2 text-xs text-[#b9cacb]">JPG, GIF or PNG. Max size 2MB.</p>
               </div>
             </section>
-
           </div>
 
           <div className="col-span-12 lg:col-span-8 space-y-6">
@@ -57,19 +75,36 @@ export default function EditProfilePage({ user, onBack }) {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Full Name</span>
-                  <input className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30" defaultValue={user.username || 'Alex Thompson'} />
+                  <input
+                    className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
                 </label>
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Email Address</span>
-                  <input className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30" defaultValue={user.email || 'alex.thompson@resigntrack.com'} />
+                  <input
+                    disabled
+                    className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none"
+                    value={email}
+                  />
                 </label>
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Phone Number</span>
-                  <input className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30" defaultValue="+1 (555) 012-3456" />
+                  <input
+                    className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
                 </label>
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Date of Birth</span>
-                  <input type="date" className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30" defaultValue="1982-05-14" />
+                  <input
+                    type="date"
+                    className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                  />
                 </label>
               </div>
             </section>
@@ -82,15 +117,19 @@ export default function EditProfilePage({ user, onBack }) {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Employee ID</span>
-                  <input disabled className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none" defaultValue="EF-89234" />
+                  <input disabled className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none" defaultValue="EF-2019-0482" />
                 </label>
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9] md:col-span-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Designation</span>
-                  <input className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30" defaultValue="Senior Lead Designer" />
+                  <input
+                    className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30"
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                  />
                 </label>
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Join Date</span>
-                  <input disabled className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none" defaultValue="March 12, 2018" />
+                  <input disabled className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none" defaultValue="September 14, 2019" />
                 </label>
               </div>
             </section>
@@ -103,7 +142,12 @@ export default function EditProfilePage({ user, onBack }) {
               <div className="space-y-6">
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Residential Address</span>
-                  <textarea rows="3" className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30" defaultValue="742 Evergreen Terrace, Cyber City, CA 90210, United States" />
+                  <textarea
+                    rows="3"
+                    className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
                 </label>
               </div>
             </section>
@@ -118,6 +162,7 @@ export default function EditProfilePage({ user, onBack }) {
               </button>
               <button
                 type="button"
+                onClick={handleSave}
                 className="rounded-xl bg-[#00dbe9] px-8 py-3 text-sm font-bold text-white shadow-[0_10px_20px_rgba(0,219,233,0.20)] transition-all hover:-translate-y-0.5 hover:bg-[#00c4d4]"
               >
                 Save Changes

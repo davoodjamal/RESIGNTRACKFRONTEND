@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import Icon from '../Icon';
 
+const emergencyReasons = [
+  'Medical Emergency',
+  'Family Relocation',
+  'Personal / Health Issues',
+  'Immediate Better Opportunity',
+  'Other'
+];
+
 export default function ResignationSubmission({ user, systemSettings, onSubmitResignation }) {
   const [reason, setReason] = useState('');
   const [comments, setComments] = useState('');
@@ -15,6 +23,14 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
     e.preventDefault();
     if (!reason || !relievingDate) {
       alert('Please fill out all required fields.');
+      return;
+    }
+    if (isEmergencyRequested && !emergencyReason) {
+      alert('Please select an emergency reason.');
+      return;
+    }
+    if (isEmergencyRequested && !emergencyRemarks.trim()) {
+      alert('Please provide remarks explaining your emergency request.');
       return;
     }
     setIsSubmitting(true);
@@ -131,20 +147,29 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
                {isEmergencyRequested && (
                   <div className="space-y-4 mt-6 overflow-hidden transition-all duration-300 ease-out animate-in fade-in slide-in-from-top-2">
                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-[#00dbe9] uppercase tracking-wider">Emergency Reason *</label>
-                        <select
-                           value={emergencyReason}
-                           onChange={(e) => {
-                              setEmergencyReason(e.target.value);
-                              if (e.target.value) setErrors(prev => ({ ...prev, emergencyReason: '' }));
-                           }}
-                           className="w-full bg-[#2a292f] border border-[#3b494b] rounded-xl p-4 text-sm font-semibold focus:ring-2 focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none transition-all"
-                        >
-                           <option value="" disabled>Select an emergency reason</option>
-                           {emergencyReasons.map((r, i) => (
-                              <option key={i} value={r}>{r}</option>
-                           ))}
-                        </select>
+                        <label className="text-xs font-bold text-[#00dbe9] uppercase tracking-wider block mb-3">Emergency Reason *</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                           {emergencyReasons.map((r, i) => {
+                              const selected = emergencyReason === r;
+                              return (
+                                 <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => {
+                                       setEmergencyReason(r);
+                                       setErrors(prev => ({ ...prev, emergencyReason: '' }));
+                                    }}
+                                    className={`flex items-center justify-center p-4 rounded-xl border text-sm font-semibold transition-all ${
+                                       selected
+                                          ? 'bg-[#00dbe9] text-[#08131f] border-[#00dbe9]'
+                                          : 'bg-[#2a292f] text-[#e4e1e9] border border-[#3b494b] hover:border-[#00dbe9]'
+                                    }`}
+                                 >
+                                    {r}
+                                 </button>
+                              );
+                           })}
+                        </div>
                         {errors.emergencyReason && <p className="text-xs text-[#ffb4ab] mt-1">{errors.emergencyReason}</p>}
                      </div>
 
