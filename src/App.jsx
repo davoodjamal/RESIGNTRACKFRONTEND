@@ -100,8 +100,21 @@ function App() {
             designation: profileData.designation,
             address: profileData.address,
           };
-          setUser(updatedUser);
-          localStorage.setItem('user', JSON.stringify(updatedUser));
+          
+          const hasChanged = 
+            user.email !== updatedUser.email ||
+            user.username !== updatedUser.username ||
+            user.role !== updatedUser.role ||
+            user.fullName !== updatedUser.fullName ||
+            user.phone !== updatedUser.phone ||
+            user.dob !== updatedUser.dob ||
+            user.designation !== updatedUser.designation ||
+            user.address !== updatedUser.address;
+
+          if (hasChanged) {
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
         }
 
         if (user.role === 'admin' || user.role === 'hr') {
