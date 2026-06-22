@@ -1,33 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '../Icon';
-
-/* ── static data for charts ── */
-const attritionData = [
-  { month: 'Jan', voluntary: 65, involuntary: 28 },
-  { month: 'Feb', voluntary: 59, involuntary: 48 },
-  { month: 'Mar', voluntary: 80, involuntary: 40 },
-  { month: 'Apr', voluntary: 81, involuntary: 19 },
-  { month: 'May', voluntary: 56, involuntary: 86 },
-  { month: 'Jun', voluntary: 55, involuntary: 27 },
-];
-
-const exitReasons = [
-  { label: 'Career Growth', pct: 35, color: '#00dbe9' },
-  { label: 'Compensation', pct: 25, color: '#00dbe9' },
-  { label: 'Work-Life Balance', pct: 20, color: '#00dbe9' },
-  { label: 'Management', pct: 10, color: '#505f76' },
-  { label: 'Other', pct: 10, color: '#3b494b' },
-];
-
-const usageMetrics = [
-  { label: 'Total Logins (Today)', value: '1,248', trend: '+12% vs yesterday', trendUp: true, color: 'text-[#00dbe9]' },
-  { label: 'Workflows Initiated', value: '342', trend: '+5% vs yesterday', trendUp: true, color: 'text-[#e4e1e9]' },
-  { label: 'Pending Approvals', value: '89', trend: 'Avg time: 4hrs', trendUp: null, color: 'text-[#b9cacb]' },
-  { label: 'Failed Logins', value: '24', trend: 'Investigate', trendUp: false, color: 'text-[#ffb4ab]', danger: true },
-];
+import { fetchAdminAnalyticsSync } from '../../api';
 
 /* ── System Usage Details modal ── */
-function UsageDetailsModal({ onClose }) {
+function UsageDetailsModal({ onClose, summaryData }) {
+  const uniqueUsers = summaryData?.unique_users || '0';
+  const avgSession = summaryData?.avg_session || '24m 12s';
+  const peakHour = summaryData?.peak_hour || '10:00 AM';
+  const workflowPerformance = summaryData?.workflow_performance || [
+    { metric: 'Resignation Requests', initiated: 156, completed: 142, avg_time: '1.2 Days' },
+    { metric: 'Exit Interviews', initiated: 84, completed: 78, avg_time: '45 Mins' }
+  ];
+  const errorLogs = summaryData?.error_logs || { unauthorized: 18, forbidden: 6 };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[#e4e1e9]/40 backdrop-blur-md" onClick={onClose} />
@@ -52,15 +37,15 @@ function UsageDetailsModal({ onClose }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { label: 'Unique Users', value: '842', sub: '+8%', subColor: 'text-[#15803d]' },
-                { label: 'Avg. Session', value: '24m 12s', sub: 'Stable', subColor: 'text-[#b9cacb]' },
-                { label: 'Peak Hour', value: '10:00 AM', sub: '142 concurrent', subColor: 'text-[#b9cacb]' },
+                { label: 'Unique Users', value: uniqueUsers, sub: '+8%', subColor: 'text-[#15803d]' },
+                { label: 'Avg. Session', value: avgSession, sub: 'Stable', subColor: 'text-[#b9cacb]' },
+                { label: 'Peak Hour', value: peakHour, sub: '142 concurrent', subColor: 'text-[#b9cacb]' },
               ].map((m) => (
                 <div key={m.label} className="p-4 rounded-lg bg-[#2a292f] border border-[#3b494b]/20">
                   <p className="text-xs font-medium text-[#b9cacb] uppercase">{m.label}</p>
                   <p className="text-2xl font-semibold text-[#e4e1e9]">{m.value}</p>
                   <p className={`text-xs mt-1 flex items-center gap-1 ${m.subColor}`}>
-                    {m.sub === '+8%' && <Icon className="text-sm">trending_up</Icon>}
+                    {m.label === 'Unique Users' && <Icon className="text-sm">trending_up</Icon>}
                     {m.sub}
                   </p>
                 </div>
@@ -84,8 +69,14 @@ function UsageDetailsModal({ onClose }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#3b494b]/20">
-                  <tr><td className="p-4 font-medium">Resignation Requests</td><td className="p-4">156</td><td className="p-4">142</td><td className="p-4">1.2 Days</td></tr>
-                  <tr><td className="p-4 font-medium">Exit Interviews</td><td className="p-4">84</td><td className="p-4">78</td><td className="p-4">45 Mins</td></tr>
+                  {workflowPerformance.map((row) => (
+                    <tr key={row.metric}>
+                      <td className="p-4 font-medium">{row.metric}</td>
+                      <td className="p-4">{row.initiated}</td>
+                      <td className="p-4">{row.completed}</td>
+                      <td className="p-4">{row.avg_time}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -103,14 +94,14 @@ function UsageDetailsModal({ onClose }) {
                   <span className="px-2 py-1 bg-[#ffb4ab] text-white text-xs font-bold rounded">401</span>
                   <span className="text-sm">Unauthorized Access Attempts</span>
                 </div>
-                <span className="font-bold text-[#ffb4ab]">18</span>
+                <span className="font-bold text-[#ffb4ab]">{errorLogs.unauthorized}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-[#2a292f] rounded-lg border border-[#3b494b]/20">
                 <div className="flex items-center gap-3">
                   <span className="px-2 py-1 bg-[#b9cacb] text-white text-xs font-bold rounded">403</span>
                   <span className="text-sm">Forbidden Resource Requests</span>
                 </div>
-                <span className="font-bold">6</span>
+                <span className="font-bold">{errorLogs.forbidden}</span>
               </div>
             </div>
           </section>
@@ -128,22 +119,95 @@ function UsageDetailsModal({ onClose }) {
 
 /* ── Main Component ── */
 export default function ReportsAnalytics() {
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
   const [showUsageModal, setShowUsageModal] = useState(false);
 
-  const maxBar = Math.max(...attritionData.map((d) => d.voluntary + d.involuntary));
+  async function loadAnalytics(isManual = false) {
+    if (isManual) setSyncing(true);
+    try {
+      const data = await fetchAdminAnalyticsSync();
+      setAnalyticsData(data.data);
+      setError(null);
+    } catch (err) {
+      setError(err.message || 'Failed to sync analytics data');
+    } finally {
+      setLoading(false);
+      setSyncing(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
+
+  const attritionData = analyticsData?.charts?.attrition_trends || [];
+  const exitReasons = analyticsData?.charts?.exit_reasons || [];
+  const summary = analyticsData?.summary || {};
+
+  const usageMetrics = [
+    { label: 'Total Logins (Today)', value: summary.total_logins_today?.toLocaleString() || '0', trend: '+12% vs yesterday', trendUp: true, color: 'text-[#00dbe9]' },
+    { label: 'Workflows Initiated', value: summary.workflows_initiated?.toLocaleString() || '0', trend: '+5% vs yesterday', trendUp: true, color: 'text-[#e4e1e9]' },
+    { label: 'Pending Approvals', value: summary.pending_approvals?.toLocaleString() || '0', trend: 'Avg time: 4hrs', trendUp: null, color: 'text-[#b9cacb]' },
+    { label: 'Failed Logins', value: summary.failed_logins?.toLocaleString() || '0', trend: 'Investigate', trendUp: false, color: 'text-[#ffb4ab]', danger: true },
+  ];
+
+  const maxBar = attritionData.length > 0
+    ? Math.max(...attritionData.map((d) => (d.voluntary || 0) + (d.involuntary || 0)), 1)
+    : 1;
+
+  if (loading && !analyticsData) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="h-10 bg-[#2a292f] rounded w-64"></div>
+          <div className="h-10 bg-[#2a292f] rounded w-32"></div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-[380px] bg-[#1f1f24] border border-[#3b494b]/20 rounded-xl"></div>
+          <div className="h-[380px] bg-[#1f1f24] border border-[#3b494b]/20 rounded-xl"></div>
+        </div>
+        <div className="h-[280px] bg-[#1f1f24] border border-[#3b494b]/20 rounded-xl"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h2 className="text-4xl font-bold text-[#e4e1e9] tracking-tight">Reports & Analytics</h2>
-        <p className="text-base text-[#b9cacb] mt-1">Monitor organization trends and system utilization.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-4xl font-bold text-[#e4e1e9] tracking-tight">Reports & Analytics</h2>
+          <p className="text-base text-[#b9cacb] mt-1">Monitor organization trends and system utilization.</p>
+        </div>
+        <button
+          onClick={() => loadAnalytics(true)}
+          disabled={syncing}
+          className="flex items-center gap-2 px-4 py-2 bg-[#2a292f] border border-[#3b494b]/30 rounded-lg text-sm text-[#e4e1e9] hover:bg-[#34333b] active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none self-start sm:self-center"
+        >
+          <Icon className={`${syncing ? 'animate-spin' : ''}`}>sync</Icon>
+          {syncing ? 'Syncing...' : 'Sync Now'}
+        </button>
       </div>
+
+      {error && (
+        <div className="bg-[#b91c1c]/10 border border-[#b91c1c]/20 text-[#b91c1c] px-4 py-3 rounded-lg flex items-center gap-2 text-sm">
+          <Icon className="text-lg">error</Icon>
+          <span>Failed to sync analytics. ({error})</span>
+        </div>
+      )}
 
       {/* Bento Grid: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bar Chart: Monthly Attrition */}
-        <div className="lg:col-span-2 bg-[#1f1f24] rounded-xl shadow-sm border border-[#3b494b]/20 p-6 flex flex-col">
+        <div className="lg:col-span-2 bg-[#1f1f24] rounded-xl shadow-sm border border-[#3b494b]/20 p-6 flex flex-col relative">
+          {syncing && (
+            <div className="absolute inset-0 bg-[#1f1f24]/50 backdrop-blur-xs flex items-center justify-center rounded-xl z-10">
+              <Icon className="text-4xl text-[#00dbe9] animate-spin">sync</Icon>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-2xl font-semibold text-[#e4e1e9]">Monthly Attrition Trends</h3>
@@ -151,26 +215,44 @@ export default function ReportsAnalytics() {
             </div>
           </div>
           <div className="flex-1 flex items-end gap-4 min-h-[300px] pt-4">
-            {attritionData.map((d) => (
-              <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex flex-col items-center gap-0" style={{ height: `${((d.voluntary + d.involuntary) / maxBar) * 260}px` }}>
-                  <div className="w-full rounded-t bg-[#00dbe9] transition-all duration-500" style={{ height: `${(d.voluntary / (d.voluntary + d.involuntary)) * 100}%` }} title={`Voluntary: ${d.voluntary}`} />
-                  <div className="w-full rounded-b bg-[#00dbe9] transition-all duration-500" style={{ height: `${(d.involuntary / (d.voluntary + d.involuntary)) * 100}%` }} title={`Involuntary: ${d.involuntary}`} />
+            {attritionData.map((d) => {
+              const voluntary = d.voluntary || 0;
+              const involuntary = d.involuntary || 0;
+              const sum = voluntary + involuntary;
+              const percent = sum > 0 ? (sum / maxBar) * 260 : 0;
+              const volPct = sum > 0 ? (voluntary / sum) * 100 : 0;
+              const involPct = sum > 0 ? (involuntary / sum) * 100 : 0;
+
+              return (
+                <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="w-full flex flex-col items-center gap-0" style={{ height: `${percent}px` }}>
+                    <div className="w-full rounded-t bg-[#00dbe9] transition-all duration-500" style={{ height: `${volPct}%` }} title={`Voluntary: ${voluntary}`} />
+                    <div className="w-full rounded-b bg-[#505f76] transition-all duration-500" style={{ height: `${involPct}%` }} title={`Involuntary: ${involuntary}`} />
+                  </div>
+                  <span className="text-xs text-[#b9cacb] mt-2">{d.month}</span>
                 </div>
-                <span className="text-xs text-[#b9cacb] mt-2">{d.month}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex items-center justify-center gap-6 mt-5 pt-4 border-t border-[#3b494b]/20">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#00dbe9]" />
-              <span className="text-xs text-[#b9cacb]">Voluntary</span></div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#00dbe9]" />
-              <span className="text-xs text-[#b9cacb]">Involuntary</span></div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-[#00dbe9]" />
+              <span className="text-xs text-[#b9cacb]">Voluntary</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-[#505f76]" />
+              <span className="text-xs text-[#b9cacb]">Involuntary</span>
+            </div>
           </div>
         </div>
 
         {/* Doughnut: Exit Reasons */}
-        <div className="bg-[#1f1f24] rounded-xl shadow-sm border border-[#3b494b]/20 p-6 flex flex-col">
+        <div className="bg-[#1f1f24] rounded-xl shadow-sm border border-[#3b494b]/20 p-6 flex flex-col relative">
+          {syncing && (
+            <div className="absolute inset-0 bg-[#1f1f24]/50 backdrop-blur-xs flex items-center justify-center rounded-xl z-10">
+              <Icon className="text-4xl text-[#00dbe9] animate-spin">sync</Icon>
+            </div>
+          )}
           <div className="mb-6">
             <h3 className="text-xl font-semibold text-[#e4e1e9]">Top Exit Reasons</h3>
             <p className="text-xs text-[#b9cacb] mt-1">YTD Aggregated Data</p>
@@ -182,8 +264,8 @@ export default function ReportsAnalytics() {
                 className="w-full h-full rounded-full"
                 style={{
                   background: `conic-gradient(${exitReasons.map((r, i) => {
-                    const start = exitReasons.slice(0, i).reduce((s, x) => s + x.pct, 0);
-                    return `${r.color} ${start * 3.6}deg ${(start + r.pct) * 3.6}deg`;
+                    const start = exitReasons.slice(0, i).reduce((s, x) => s + (x.pct || 0), 0);
+                    return `${r.color} ${start * 3.6}deg ${(start + (r.pct || 0)) * 3.6}deg`;
                   }).join(', ')})`,
                 }}
               />
@@ -196,7 +278,7 @@ export default function ReportsAnalytics() {
             {exitReasons.map((r) => (
               <div key={r.label} className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
-                <span className="text-[11px] text-[#b9cacb]">{r.label}</span>
+                <span className="text-[11px] text-[#b9cacb]">{r.label} ({r.pct}%)</span>
               </div>
             ))}
           </div>
@@ -204,7 +286,12 @@ export default function ReportsAnalytics() {
       </div>
 
       {/* System Usage Report */}
-      <div className="bg-[#1f1f24] rounded-xl shadow-sm border border-[#3b494b]/20 p-6">
+      <div className="bg-[#1f1f24] rounded-xl shadow-sm border border-[#3b494b]/20 p-6 relative">
+        {syncing && (
+          <div className="absolute inset-0 bg-[#1f1f24]/50 backdrop-blur-xs flex items-center justify-center rounded-xl z-10">
+            <Icon className="text-4xl text-[#00dbe9] animate-spin">sync</Icon>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-2xl font-semibold text-[#e4e1e9]">System Usage Report</h3>
@@ -248,7 +335,12 @@ export default function ReportsAnalytics() {
         </div>
       </div>
 
-      {showUsageModal && <UsageDetailsModal onClose={() => setShowUsageModal(false)} />}
+      {showUsageModal && (
+        <UsageDetailsModal
+          onClose={() => setShowUsageModal(false)}
+          summaryData={summary}
+        />
+      )}
     </div>
   );
 }

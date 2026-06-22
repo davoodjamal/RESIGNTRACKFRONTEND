@@ -33,6 +33,10 @@ async function request(url, options = {}) {
     throw new Error(data.error || data.detail || `Request failed with status ${res.status}`);
   }
 
+  if (res.status === 204) {
+    return null;
+  }
+
   return res.json();
 }
 
@@ -163,4 +167,51 @@ export async function submitExitInterview(resignationId, exitFeedback) {
     method: 'PATCH',
     body: JSON.stringify({ exitFeedback }),
   });
+}
+
+// ─── Dashboard Metrics ──────────────────────────────────
+export async function fetchDashboardMetrics() {
+  return request(`${API_BASE}/dashboard/metrics/`);
+}
+
+// ─── System Health ──────────────────────────────────────
+export async function fetchSystemHealth() {
+  return request(`${API_BASE}/system/health/`);
+}
+
+export async function fetchSystemHealthV1() {
+  return request(`${API_BASE}/v1/system-health/`);
+}
+
+export async function fetchAdminAnalyticsSync(params = {}) {
+  const query = new URLSearchParams();
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+      if (Array.isArray(params[key])) {
+        params[key].forEach(val => query.append(`${key}[]`, val));
+      } else {
+        query.append(key, params[key]);
+      }
+    }
+  });
+  const queryString = query.toString();
+  const url = `${API_BASE}/v1/admin/analytics/sync/${queryString ? `?${queryString}` : ''}`;
+  return request(url);
+}
+
+// ─── Admin Audit Logs ───────────────────────────────────
+export async function fetchAdminAuditLogs(params = {}) {
+  const query = new URLSearchParams();
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+      query.append(key, params[key]);
+    }
+  });
+  const queryString = query.toString();
+  const url = `${API_BASE}/v1/admin/audit-logs/${queryString ? `?${queryString}` : ''}`;
+  return request(url);
+}
+
+export function getAuditLogsStreamUrl() {
+  return `${API_BASE}/v1/admin/audit-logs/stream/`;
 }

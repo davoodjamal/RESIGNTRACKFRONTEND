@@ -1,7 +1,63 @@
+import { useState, useEffect } from 'react';
 import Icon from '../Icon';
+import { fetchDashboardMetrics, fetchSystemHealth } from '../../api';
+
+const formatLastUpdated = (date) => {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  return `Today, ${displayHours}:${displayMinutes} ${ampm}`;
+};
 
 export default function AdminDashboard({ users }) {
   const totalUsers = users ? users.length : 14285;
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState('...');
+
+  const [health, setHealth] = useState(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [healthError, setHealthError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    async function loadData() {
+      try {
+        setLoading(true);
+        setHealthLoading(true);
+        const [metricsRes, healthRes] = await Promise.all([
+          fetchDashboardMetrics(),
+          fetchSystemHealth()
+        ]);
+        if (active) {
+          if (metricsRes && metricsRes.success) {
+            setMetrics(metricsRes.data);
+          }
+          if (healthRes && healthRes.success) {
+            setHealth(healthRes.data);
+          }
+          setLastUpdated(formatLastUpdated(new Date()));
+        }
+      } catch (err) {
+        if (active) {
+          setError(err.message || 'Failed to load dashboard metrics');
+          setHealthError(err.message || 'Failed to load system health status');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+          setHealthLoading(false);
+        }
+      }
+    }
+    loadData();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8 duration-500">
@@ -14,7 +70,7 @@ export default function AdminDashboard({ users }) {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-medium tracking-wide text-[#b9cacb]">Last updated: Today, 09:41 AM</p>
+          <p className="text-xs font-medium tracking-wide text-[#b9cacb]">Last updated: {lastUpdated}</p>
         </div>
       </div>
 
@@ -47,7 +103,9 @@ export default function AdminDashboard({ users }) {
             </span>
           </div>
           <h3 className="text-sm text-[#b9cacb] mb-1 relative z-10">Active Resignations</h3>
-          <p className="text-2xl font-semibold text-[#e4e1e9] relative z-10">127</p>
+          <p className="text-2xl font-semibold text-[#e4e1e9] relative z-10">
+            {loading ? '...' : error ? 'Error' : metrics?.activeResignations}
+          </p>
         </div>
 
         {/* Card 3 */}
@@ -62,23 +120,37 @@ export default function AdminDashboard({ users }) {
             </span>
           </div>
           <h3 className="text-sm text-[#b9cacb] mb-1 relative z-10">Pending Tasks</h3>
-          <p className="text-2xl font-semibold text-[#e4e1e9] relative z-10">48</p>
+          <p className="text-2xl font-semibold text-[#e4e1e9] relative z-10">
+            {loading ? '...' : error ? 'Error' : metrics?.pendingTasks}
+          </p>
         </div>
 
         {/* Card 4 */}
         <div className="bg-[#1f1f24] rounded-lg p-6 border border-[#c3c6d5] shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#33fb0a]/5 rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 group-hover:scale-125"></div>
           <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-[#2a292f] flex items-center justify-center text-[#33fb0a] transition-transform duration-300 group-hover:scale-110">
+            <div className={`w-10 h-10 rounded-lg bg-[#2a292f] flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${
+              healthLoading ? 'text-[#b9cacb]' :
+              healthError || health?.status !== 'Healthy' ? 'text-[#BA1A1A]' : 'text-[#33fb0a]'
+            }`}>
               <Icon>health_and_safety</Icon>
             </div>
-            <span className="inline-flex items-center gap-1 text-xs font-medium tracking-wide text-[#33fb0a] bg-[#33fb0a]/10 px-2 py-1 rounded-full">
-              99.9% Uptime
+            <span className={`inline-flex items-center gap-1 text-xs font-medium tracking-wide px-2 py-1 rounded-full ${
+              healthLoading ? 'text-[#b9cacb] bg-[#b9cacb]/10' :
+              healthError || health?.status !== 'Healthy' ? 'text-[#BA1A1A] bg-[#BA1A1A]/10' : 'text-[#33fb0a] bg-[#33fb0a]/10'
+            }`}>
+              {healthLoading ? '... Uptime' : healthError ? 'Error' : `${health?.uptime} Uptime`}
             </span>
           </div>
           <h3 className="text-sm text-[#b9cacb] mb-1 relative z-10">System Health Status</h3>
-          <p className="text-2xl font-semibold text-[#e4e1e9] flex items-baseline gap-2 relative z-10">
-            Healthy <span className="text-sm text-[#b9cacb] font-normal">0 Errors</span>
+          <p className={`text-2xl font-semibold flex items-baseline gap-2 relative z-10 ${
+            healthLoading ? 'text-[#b9cacb]' :
+            healthError || health?.status !== 'Healthy' ? 'text-[#BA1A1A]' : 'text-[#e4e1e9]'
+          }`}>
+            {healthLoading ? '...' : healthError ? 'Error' : health?.status}
+            <span className="text-sm text-[#b9cacb] font-normal">
+              {healthLoading ? '...' : healthError ? '' : `${health?.errors} Errors`}
+            </span>
           </p>
         </div>
       </div>

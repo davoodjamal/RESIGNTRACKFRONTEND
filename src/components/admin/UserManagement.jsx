@@ -3,6 +3,7 @@ import Icon from '../Icon';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import DeleteUserModal from './DeleteUserModal';
+import { deleteUser } from '../../api';
 
 export default function UserManagement({ users, onRefreshUsers, onSetActiveTab }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,16 +13,16 @@ export default function UserManagement({ users, onRefreshUsers, onSetActiveTab }
   const [deletingUser, setDeletingUser] = useState(null);
 
   const filteredUsers = users.filter((user) => {
-    const matchesSearch = user.username?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
     // Normalize roles for filtering
     const roleMapping = {
       'admin': 'Admin',
       'hr': 'HR Manager',
       'employee': 'Employee'
     };
-    
+
     const userRole = roleMapping[user.role] || 'Employee';
     const matchesRole = roleFilter === 'All Roles' || userRole === roleFilter;
 
@@ -152,7 +153,7 @@ export default function UserManagement({ users, onRefreshUsers, onSetActiveTab }
             )}
           </tbody>
         </table>
-        
+
         {/* Pagination Dummy */}
         <div className="p-4 border-t border-[#3b494b] flex items-center justify-between bg-[#1f1f24] text-sm text-[#b9cacb]">
           <div>Showing 1 to {filteredUsers.length} of {filteredUsers.length} entries</div>
@@ -183,9 +184,13 @@ export default function UserManagement({ users, onRefreshUsers, onSetActiveTab }
         <DeleteUserModal
           user={deletingUser}
           onClose={() => setDeletingUser(null)}
-          onDelete={() => {
-            // Placeholder: Call parent's onDeleteUser(user)
-            console.log('Deleted user:', deletingUser.email);
+          onDelete={async () => {
+            try {
+              await deleteUser(deletingUser.id);
+              onRefreshUsers?.();
+            } catch (err) {
+              alert(err.message || 'Failed to delete user');
+            }
             setDeletingUser(null);
           }}
         />
