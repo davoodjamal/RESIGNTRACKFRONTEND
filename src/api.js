@@ -24,8 +24,8 @@ async function request(url, options = {}) {
     // Only reload/force log out if we actually tried to run an authenticated request
     if (token) {
       window.location.reload();
+      throw new Error('Session expired or unauthorized');
     }
-    throw new Error('Session expired or unauthorized');
   }
 
   if (!res.ok) {
@@ -75,8 +75,15 @@ export function getCurrentUser() {
 }
 
 // ─── Users ──────────────────────────────────────────────
-export async function fetchUsers() {
-  return request(`${API_BASE}/users/`);
+export async function fetchUsers(params = {}) {
+  const query = new URLSearchParams();
+  if (params.role) query.append('role', params.role);
+  if (params.status) query.append('status', params.status);
+  const queryString = query.toString();
+  const url = queryString ? `${API_BASE}/users/?${queryString}` : `${API_BASE}/users/`;
+  return request(url);
+}export async function fetchUserById(id) {
+  return request(`${API_BASE}/users/${id}/`);
 }
 
 export async function createUser(data) {
