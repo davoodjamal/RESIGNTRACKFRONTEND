@@ -222,3 +222,24 @@ export async function fetchAdminAuditLogs(params = {}) {
 export function getAuditLogsStreamUrl() {
   return `${API_BASE}/v1/admin/audit-logs/stream/`;
 }
+
+// ─── Analytics Individual Metrics ────────────────────────
+export async function fetchPendingApprovals() {
+  return request(`${API_BASE}/analytics/approvals/pending/`);
+}
+
+export async function fetchFailedLogins() {
+  return request(`${API_BASE}/analytics/logins/failed/`);
+}
+
+export async function fetchHourlyActivity() {
+  return request(`${API_BASE}/analytics/activity/hourly/`);
+}
+
+export async function fetchSystemUsageSnapshot() {
+  return request(`${API_BASE}/v1/admin/analytics/system-usage/snapshot/`);
+}
+
+export function getSystemUsageStreamUrl() {
+  return `${API_BASE}/v1/admin/analytics/system-usage/stream/`;
+}
