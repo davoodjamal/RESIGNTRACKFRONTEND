@@ -14,6 +14,7 @@ export default function EmployeePortal({
   user,
   resignations,
   onSubmitResignation,
+  onWithdrawResignation,
   systemSettings,
   onLogout,
   onUpdateProfile,
@@ -30,7 +31,12 @@ export default function EmployeePortal({
     switch (activeTab) {
       case 'dashboard':
         return employeeResignation ? (
-          <EmployeeDashboard user={user} resignation={employeeResignation} />
+          <EmployeeDashboard 
+            user={user} 
+            resignation={employeeResignation} 
+            systemSettings={systemSettings}
+            onWithdraw={() => onWithdrawResignation(employeeResignation.id)}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-[#b9cacb] pt-20">
              <div className="text-center">

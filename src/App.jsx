@@ -156,13 +156,22 @@ function App() {
   };
 
   // Submit new Resignation (Employee Portal)
-  const handleSubmitResignation = async (newResignation) => {
+  const handleSubmitResignation = (createdResignation) => {
+    setResignations((prev) => {
+      const filtered = prev.filter(r => r.id !== createdResignation.id && r.email !== createdResignation.email);
+      return [createdResignation, ...filtered];
+    });
+    addAuditLog(`Exit request submitted: Employee [${createdResignation.email}] filed resignation (${createdResignation.reason}).`);
+  };
+
+  const handleWithdrawResignation = async (resignationId) => {
     try {
-      const createdResignation = await apiSubmitResignation(newResignation);
-      setResignations((prev) => [createdResignation, ...prev]);
-      addAuditLog(`Exit request submitted: Employee [${createdResignation.email}] filed resignation (${createdResignation.reason}).`);
+      const updated = await withdrawResignation(resignationId);
+      setResignations(prev => prev.map(r => r.id === resignationId ? updated : r));
+      addAuditLog(`Exit request withdrawn: Employee [${updated.email}] withdrew resignation.`);
+      alert('Resignation withdrawn successfully.');
     } catch (err) {
-      alert(err.message || 'Failed to submit resignation');
+      alert(err.message || 'Failed to withdraw resignation');
     }
   };
 
@@ -265,6 +274,7 @@ function App() {
         user={user}
         resignations={resignations}
         onSubmitResignation={handleSubmitResignation}
+        onWithdrawResignation={handleWithdrawResignation}
         systemSettings={systemSettings}
         onLogout={handleLogout}
         onUpdateProfile={handleUpdateProfile}

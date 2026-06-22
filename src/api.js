@@ -112,11 +112,37 @@ export async function fetchResignations() {
   return request(`${API_BASE}/resignations/`);
 }
 
+export async function fetchDraftResignation() {
+  return request(`${API_BASE}/resignations/draft/`);
+}
+
+export async function saveDraftResignation(data, id = null) {
+  if (id) {
+    return request(`${API_BASE}/resignations/draft/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  } else {
+    return request(`${API_BASE}/resignations/draft/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+}
+
 export async function submitResignation(data) {
   return request(`${API_BASE}/resignations/`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+export async function fetchDashboardSummary() {
+  return request(`${API_BASE}/dashboard/`);
+}
+
+export async function fetchEmployeeResignationStatus() {
+  return request(`${API_BASE}/resignations/status/`);
 }
 
 export async function updateResignationStatus(id, status) {
