@@ -1,7 +1,68 @@
+import { useState, useEffect } from 'react';
 import Icon from '../Icon';
 
-export default function OffboardingChecklist({ resignation, onStartInterview, noticePeriodData, checklistTasks, onUpdateTaskStatus }) {
+export default function OffboardingChecklist({ resignation, onStartInterview, noticePeriodData, checklistTasks, onUpdateTaskStatus, onRescheduleRequest }) {
   const noticePeriod = noticePeriodData ? noticePeriodData.notice_period : 30;
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [reason, setReason] = useState('');
+  const [validationError, setValidationError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [apiError, setApiError] = useState('');
+
+  // Clear states when modal closes/opens
+  useEffect(() => {
+    if (isModalOpen) {
+      setNewDate('');
+      setNewTime('');
+      setReason('');
+      setValidationError('');
+      setApiError('');
+    }
+  }, [isModalOpen]);
+
+  const handleRescheduleSubmit = async (e) => {
+    e.preventDefault();
+    setValidationError('');
+    setApiError('');
+
+    if (!newDate) {
+      setValidationError('Please select a preferred date.');
+      return;
+    }
+    if (!newTime) {
+      setValidationError('Please select a preferred time.');
+      return;
+    }
+    if (!reason || !reason.trim()) {
+      setValidationError('Please specify the reason for rescheduling.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (onRescheduleRequest) {
+        await onRescheduleRequest({
+          resignation: resignation.id,
+          current_schedule: resignation.meeting_schedule || 'Today, 2:00 PM',
+          requested_date: newDate,
+          requested_time: newTime,
+          reason: reason.trim()
+        });
+        setSuccessMessage('Reschedule request submitted successfully.');
+        setIsModalOpen(false);
+        // Clear success message after some seconds
+        setTimeout(() => setSuccessMessage(''), 4000);
+      }
+    } catch (err) {
+      setApiError(err.message || 'Failed to submit reschedule request.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const isSubmitted = resignation && (resignation.status === 'Pending' || resignation.status === 'Approved');
 
@@ -141,29 +202,153 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
             <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-[#1f1f24] opacity-10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
          </div>
 
-         {/* Resources Card */}
-         <div className="lg:col-span-5 bg-[#1f1f24] rounded-2xl p-8 flex flex-col justify-between shadow-sm border border-[#3b494b]">
-            <div>
-               <h3 className="text-xl font-bold text-[#00dbe9] mb-4">HR Consultation</h3>
-               <p className="text-sm font-medium text-[#b9cacb] mb-8 leading-relaxed">Join your scheduled exit interview or discuss your transition details live with your HR manager.</p>
-               <div className="space-y-3">
-                  <button className="w-full flex items-center justify-center gap-3 p-3.5 bg-[#00dbe9] text-white rounded-xl hover:bg-[#00dbe9] active:scale-95 transition-all font-bold shadow-sm">
-                     <Icon className="text-[20px]">video_call</Icon>
-                     <span className="text-sm">Join Video Meeting</span>
-                  </button>
-                  <button className="w-full flex items-center justify-center gap-3 p-3.5 border-2 border-[#00dbe9] text-[#00dbe9] bg-transparent rounded-xl hover:bg-[#00dbe9]/5 active:scale-95 transition-all font-bold">
-                     <Icon className="text-[20px]">calendar_today</Icon>
-                     <span className="text-sm">Reschedule Meeting</span>
-                  </button>
-               </div>
-            </div>
-            <div className="mt-8 pt-6 border-t border-[#3b494b]">
-               <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">
-                  Scheduled for: <span className="text-[#00dbe9]">Today, 2:00 PM</span>
-               </p>
-            </div>
-         </div>
-      </div>
+          {/* Resources Card */}
+          <div className="lg:col-span-5 bg-[#1f1f24] rounded-2xl p-8 flex flex-col justify-between shadow-sm border border-[#3b494b]">
+             <div>
+                <h3 className="text-xl font-bold text-[#00dbe9] mb-4">HR Consultation</h3>
+                <p className="text-sm font-medium text-[#b9cacb] mb-8 leading-relaxed">Join your scheduled exit interview or discuss your transition details live with your HR manager.</p>
+                <div className="space-y-3">
+                   <button className="w-full flex items-center justify-center gap-3 p-3.5 bg-[#00dbe9] text-white rounded-xl hover:bg-[#00dbe9] active:scale-95 transition-all font-bold shadow-sm">
+                      <Icon className="text-[20px]">video_call</Icon>
+                      <span className="text-sm">Join Video Meeting</span>
+                   </button>
+                   <button 
+                      onClick={() => setIsModalOpen(true)}
+                      disabled={resignation?.meeting_status === 'Reschedule Requested' || !isSubmitted}
+                      className="w-full flex items-center justify-center gap-3 p-3.5 border-2 border-[#00dbe9] text-[#00dbe9] bg-transparent rounded-xl hover:bg-[#00dbe9]/5 active:scale-95 transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                      <Icon className="text-[20px]">calendar_today</Icon>
+                      <span className="text-sm">
+                         {resignation?.meeting_status === 'Reschedule Requested' ? 'Reschedule Pending' : 'Reschedule Meeting'}
+                      </span>
+                   </button>
+                </div>
+             </div>
+             <div className="mt-8 pt-6 border-t border-[#3b494b]">
+                <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">
+                   Scheduled for: <span className="text-[#00dbe9]">{resignation?.meeting_schedule || 'Today, 2:00 PM'}</span>
+                   {resignation?.meeting_status === 'Reschedule Requested' && (
+                     <span className="block text-[10px] text-[#ffc107] mt-1 font-bold">
+                       * Reschedule Request Pending Review
+                     </span>
+                   )}
+                </p>
+             </div>
+          </div>
+       </div>
+
+      {/* Reschedule Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000080] backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-[28px] border border-[#3b494b] bg-[#1f1f24] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-5 right-5 rounded-full border border-[#3b494b] bg-[#131318] p-3 text-[#b9cacb] hover:text-[#00dbe9] transition-colors"
+            >
+              <Icon>close</Icon>
+            </button>
+
+            <form onSubmit={handleRescheduleSubmit} className="space-y-6 text-left">
+              <div>
+                <h3 className="text-2xl font-bold text-[#e4e1e9]">Reschedule Consultation</h3>
+                <p className="text-sm text-[#b9cacb] mt-2">
+                  Request a new preferred date and time for your consultation.
+                </p>
+              </div>
+
+              {validationError && (
+                <div className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                  {validationError}
+                </div>
+              )}
+
+              {apiError && (
+                <div className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                  {apiError}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#b9cacb] mb-2">
+                    Current Schedule
+                  </label>
+                  <input
+                    type="text"
+                    disabled
+                    value={resignation?.meeting_schedule || 'Today, 2:00 PM'}
+                    className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-4 py-3 text-sm text-[#76777d] cursor-not-allowed"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#b9cacb] mb-2">
+                      New Preferred Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={newDate}
+                      onChange={(e) => setNewDate(e.target.value)}
+                      className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-4 py-3 text-sm text-[#e4e1e9] focus:outline-none focus:border-[#00dbe9] transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#b9cacb] mb-2">
+                      New Preferred Time *
+                    </label>
+                    <input
+                      type="time"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-4 py-3 text-sm text-[#e4e1e9] focus:outline-none focus:border-[#00dbe9] transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#b9cacb] mb-2">
+                    Reason for Rescheduling *
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Provide a reason for rescheduling..."
+                    className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-4 py-3 text-sm text-[#e4e1e9] placeholder-[#b9cacb] focus:outline-none focus:border-[#00dbe9] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 py-3 px-4 border border-[#3b494b] text-[#b9cacb] hover:bg-[#2a292f] hover:text-[#e4e1e9] font-semibold rounded-xl transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 py-3 px-4 bg-[#00dbe9] text-[#131318] font-bold rounded-xl hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-[0_0_15px_rgba(0,219,233,0.3)]"
+                >
+                  {isLoading ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {successMessage && (
+        <div className="fixed bottom-6 right-6 z-50 rounded-3xl bg-[#111827] border border-[#00dbe9]/20 px-6 py-4 text-sm shadow-2xl text-[#e4e1e9] flex items-center gap-2 animate-in fade-in duration-200">
+          <Icon className="text-[#00dbe9]">check_circle</Icon>
+          <span>{successMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

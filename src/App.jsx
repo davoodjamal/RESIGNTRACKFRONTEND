@@ -20,7 +20,19 @@ import {
   fetchNoticePeriod,
   withdrawResignation,
   fetchChecklistTasks,
-  updateChecklistTaskStatus
+  updateChecklistTaskStatus,
+  fetchAssets,
+  fetchAssetAuditTrail,
+  createAsset as apiCreateAsset,
+  updateAssetStatus as apiUpdateAssetStatusModel,
+  assignAsset as apiAssignAsset,
+  returnAsset as apiReturnAsset,
+  createRescheduleRequest,
+  fetchRescheduleRequests,
+  decideRescheduleRequest,
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead
 } from './api';
 
 function App() {
@@ -46,40 +58,58 @@ function App() {
   // System Users configuration, editable by Admin
   const [users, setUsers] = useState([]);
 
-  // Simulated assets state to prevent reference errors in Admin and HR portals
-  const [assets, setAssets] = useState([
-    { id: '1', name: 'MacBook Pro 16"', type: 'Laptop', serial: 'C02F2345Q6W7', status: 'Assigned', assignedTo: 'davood@resigntrack.com' },
-    { id: '2', name: 'Dell UltraSharp 27"', type: 'Monitor', serial: 'CN-098765-ABCD', status: 'Available', assignedTo: '' },
-    { id: '3', name: 'iPhone 15 Pro', type: 'Mobile', serial: 'DNP987654321', status: 'Available', assignedTo: '' }
-  ]);
+  // Assets state loaded from Django backend
+  const [assets, setAssets] = useState([]);
 
-  const [assetAuditTrail, setAssetAuditTrail] = useState([
-    { id: '1', assetId: '1', action: 'Assign', performedBy: 'hr@resigntrack.com', date: '2026-06-10', notes: 'Assigned to Davood jamal' }
-  ]);
+  const [assetAuditTrail, setAssetAuditTrail] = useState([]);
 
-  const handleAssignAsset = (assetId, email) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: 'Assigned', assignedTo: email } : a));
-    setAssetAuditTrail(prev => [
-      { id: Date.now().toString(), assetId, action: 'Assign', performedBy: user?.email || 'System', date: new Date().toISOString().split('T')[0], notes: `Assigned to ${email}` },
-      ...prev
-    ]);
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+
+  const handleAssignAsset = async (assetId, employee) => {
+    try {
+      await apiAssignAsset(assetId, employee);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+      const auditData = await fetchAssetAuditTrail();
+      setAssetAuditTrail(auditData);
+    } catch (err) {
+      alert(err.message || 'Failed to assign asset');
+    }
   };
 
-  const handleReturnAsset = (assetId) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: 'Available', assignedTo: '' } : a));
-    setAssetAuditTrail(prev => [
-      { id: Date.now().toString(), assetId, action: 'Return', performedBy: user?.email || 'System', date: new Date().toISOString().split('T')[0], notes: 'Returned to inventory' },
-      ...prev
-    ]);
+  const handleReturnAsset = async (assetId, returnDetails) => {
+    try {
+      await apiReturnAsset(assetId, returnDetails);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+      const auditData = await fetchAssetAuditTrail();
+      setAssetAuditTrail(auditData);
+    } catch (err) {
+      alert(err.message || 'Failed to return asset');
+    }
   };
 
-  const handleUpdateAssetStatus = (assetId, status) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status } : a));
+  const handleUpdateAssetStatus = async (assetId, status) => {
+    try {
+      await apiUpdateAssetStatusModel(assetId, status);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+    } catch (err) {
+      alert(err.message || 'Failed to update asset status');
+    }
   };
 
-  const handleCreateAsset = (newAsset) => {
-    setAssets(prev => [...prev, { ...newAsset, id: (prev.length + 1).toString() }]);
+  const handleCreateAsset = async (newAsset) => {
+    try {
+      await apiCreateAsset(newAsset);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+    } catch (err) {
+      alert(err.message || 'Failed to create asset');
+    }
   };
+
 
   // Load data when user state changes
   useEffect(() => {
@@ -87,23 +117,26 @@ function App() {
 
     const loadData = async () => {
       try {
-        const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData] = await Promise.all([
+        const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData, notificationsData] = await Promise.all([
           fetchSettings(),
           fetchResignations(),
           fetchAuditLogs(),
           fetchProfile().catch(() => null),
           user.role === 'employee' ? fetchNoticePeriod().catch(() => null) : Promise.resolve(null),
           user.role === 'employee' ? fetchChecklistTasks().catch(() => []) : Promise.resolve([]),
+          fetchNotifications().catch(() => []),
         ]);
         setSystemSettings(settingsData);
         setResignations(resignationsData);
         setAuditLogs(logsData);
+        setNotifications(notificationsData);
         if (noticePeriodInfo) {
           setNoticePeriodData(noticePeriodInfo);
         }
         if (checklistData) {
           setChecklistTasks(checklistData);
         }
+
         if (profileData) {
           const updatedUser = {
             ...user,
@@ -134,8 +167,17 @@ function App() {
         }
 
         if (user.role === 'admin' || user.role === 'hr') {
-          const usersData = await fetchUsers();
+          const [usersData, assetsData, auditData] = await Promise.all([
+            fetchUsers(),
+            fetchAssets().catch(() => []),
+            fetchAssetAuditTrail().catch(() => [])
+          ]);
           setUsers(usersData);
+          setAssets(assetsData);
+          setAssetAuditTrail(auditData);
+        } else if (user.role === 'employee') {
+          const assetsData = await fetchAssets().catch(() => []);
+          setAssets(assetsData);
         }
       } catch (err) {
         console.error('Failed to load data from backend:', err);
@@ -237,6 +279,50 @@ function App() {
     }
   };
 
+  const handleRescheduleRequest = async (requestData) => {
+    try {
+      const updatedRequest = await createRescheduleRequest(requestData);
+      const resignationsData = await fetchResignations();
+      setResignations(resignationsData);
+      return updatedRequest;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to submit reschedule request');
+    }
+  };
+
+  const handleDecideRescheduleRequest = async (requestId, decision, comments) => {
+    try {
+      const result = await decideRescheduleRequest(requestId, decision, comments);
+      const resignationsData = await fetchResignations();
+      setResignations(resignationsData);
+      addAuditLog(`Exit interview reschedule ${decision.toLowerCase()}: ID ${requestId}.`);
+      return result;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to submit reschedule decision');
+    }
+  };
+
+  const handleMarkNotificationRead = async (id) => {
+    try {
+      await markNotificationRead(id);
+      const notifs = await fetchNotifications();
+      setNotifications(notifs);
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      const notifs = await fetchNotifications();
+      setNotifications(notifs);
+    } catch (err) {
+      console.error('Failed to mark all notifications read:', err);
+    }
+  };
+
+
   // Approve or Reject Resignation (HR Portal)
   const handleUpdateStatus = async (idOrEmail, status) => {
     try {
@@ -294,6 +380,9 @@ function App() {
         onReturnAsset={handleReturnAsset}
         onUpdateAssetStatus={handleUpdateAssetStatus}
         onCreateAsset={handleCreateAsset}
+        notifications={notifications}
+        onMarkNotificationRead={handleMarkNotificationRead}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
       />
     );
   }
@@ -312,6 +401,12 @@ function App() {
         onLogout={handleLogout}
         onUpdateProfile={handleUpdateProfile}
         onSaveExitInterview={handleSaveExitInterview}
+        assets={assets}
+        onUpdateAssetStatus={handleUpdateAssetStatus}
+        onRescheduleRequest={handleRescheduleRequest}
+        notifications={notifications}
+        onMarkNotificationRead={handleMarkNotificationRead}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
       />
     );
   }
@@ -329,6 +424,10 @@ function App() {
         onReturnAsset={handleReturnAsset}
         onUpdateAssetStatus={handleUpdateAssetStatus}
         onCreateAsset={handleCreateAsset}
+        onDecideRescheduleRequest={handleDecideRescheduleRequest}
+        notifications={notifications}
+        onMarkNotificationRead={handleMarkNotificationRead}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
       />
     );
   }

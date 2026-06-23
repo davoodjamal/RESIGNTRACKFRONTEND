@@ -292,3 +292,85 @@ export async function fetchSystemUsageSnapshot() {
 export function getSystemUsageStreamUrl() {
   return `${API_BASE}/v1/admin/analytics/system-usage/stream/`;
 }
+
+// ─── Assets ─────────────────────────────────────────────
+export async function fetchAssets() {
+  return request(`${API_BASE}/assets/`);
+}
+
+export async function fetchAssetAuditTrail() {
+  return request(`${API_BASE}/assets/audit/`);
+}
+
+export async function createAsset(data) {
+  return request(`${API_BASE}/assets/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAssetStatus(assetId, status) {
+  return request(`${API_BASE}/assets/${assetId}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function assignAsset(assetId, employee) {
+  return request(`${API_BASE}/assets/${assetId}/assign/`, {
+    method: 'POST',
+    body: JSON.stringify({ email: employee.email || employee }),
+  });
+}
+
+export async function returnAsset(assetId, returnDetails) {
+  return request(`${API_BASE}/assets/${assetId}/return/`, {
+    method: 'POST',
+    body: JSON.stringify(returnDetails),
+  });
+}
+
+// ─── Reschedule Requests ─────────────────────────────────
+export async function createRescheduleRequest(data) {
+  return request(`${API_BASE}/resignations/reschedule/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchRescheduleRequests() {
+  return request(`${API_BASE}/resignations/reschedule/list/`);
+}
+
+export async function decideRescheduleRequest(requestId, decision, comments = '') {
+  return request(`${API_BASE}/resignations/reschedule/${requestId}/decision/`, {
+    method: 'POST',
+    body: JSON.stringify({ decision, rejection_reason: comments }),
+  });
+}
+
+// ─── Notifications ──────────────────────────────────────
+export async function fetchNotifications() {
+  return request(`${API_BASE}/notifications/`);
+}
+
+export async function markNotificationRead(id) {
+  return request(`${API_BASE}/notifications/${id}/read/`, {
+    method: 'POST',
+  });
+}
+
+export async function markAllNotificationsRead() {
+  return request(`${API_BASE}/notifications/read-all/`, {
+    method: 'POST',
+  });
+}
+
+// ─── Global Search ──────────────────────────────────────
+export async function searchGlobal(query) {
+  return request(`${API_BASE}/search/?q=${encodeURIComponent(query)}`);
+}
+
+
+
+

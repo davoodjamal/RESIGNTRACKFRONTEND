@@ -83,30 +83,31 @@ const displayStatus = {
   Escalated: 'Escalated'
 };
 
-export default function AssetManagement({ user, resignation }) {
+export default function AssetManagement({ user, resignation, assets: propAssets, onUpdateAssetStatus }) {
   const storageKey = `resigntrack-assets-${user?.email || 'guest'}`;
   const [assets, setAssets] = useState([]);
   const [modal, setModal] = useState({ type: null, asset: null, value: '' });
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        setAssets(JSON.parse(saved));
-        return;
-      } catch (err) {
-        console.warn('Unable to parse saved assets', err);
-      }
+    if (propAssets && propAssets.length > 0) {
+      const formatted = propAssets.map(a => {
+        const displayTag = a.tag ? a.tag.replace(/-\d+$/, '') : a.id.toString();
+        return {
+          id: displayTag,
+          dbId: a.id,
+          name: a.name,
+          desc: a.notes || `${a.type} assigned to you`,
+          icon: a.type === 'Laptop' ? 'laptop_mac' : a.type === 'Monitor' ? 'monitor' : a.type === 'Mobile' ? 'smartphone' : 'badge',
+          status: a.status === 'Available' ? 'Collected' : a.status === 'Assigned' ? 'In Progress' : a.status,
+          history: []
+        };
+      });
+      setAssets(formatted);
+    } else {
+      setAssets([]);
     }
-    setAssets(defaultAssets);
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (assets.length) {
-      localStorage.setItem(storageKey, JSON.stringify(assets));
-    }
-  }, [assets, storageKey]);
+  }, [propAssets]);
 
   useEffect(() => {
     if (!toast) return;
@@ -114,7 +115,19 @@ export default function AssetManagement({ user, resignation }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const updateAsset = (assetId, changes, historyNote) => {
+  const updateAsset = async (assetId, changes, historyNote) => {
+    // If status is changed, propagate to backend
+    if (changes.status && onUpdateAssetStatus) {
+      let dbStatus = changes.status;
+      if (changes.status === 'In Progress') dbStatus = 'Assigned';
+      else if (changes.status === 'Collected') dbStatus = 'Available';
+      
+      const matched = propAssets.find(a => (a.tag || a.id.toString()) === assetId);
+      if (matched) {
+        await onUpdateAssetStatus(matched.id, dbStatus);
+      }
+    }
+
     setAssets((prev) =>
       prev.map((item) =>
         item.id === assetId
