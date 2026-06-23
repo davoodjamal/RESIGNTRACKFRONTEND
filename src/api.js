@@ -145,6 +145,25 @@ export async function fetchEmployeeResignationStatus() {
   return request(`${API_BASE}/resignations/status/`);
 }
 
+export async function fetchNoticePeriod() {
+  return request(`${API_BASE}/resignations/notice-period/`);
+}
+
+export async function fetchChecklistTasks() {
+  return request(`${API_BASE}/resignations/checklist/`);
+}
+
+export async function fetchResignationChecklistTasksForHR(resignationId) {
+  return request(`${API_BASE}/resignations/${resignationId}/checklist/`);
+}
+
+export async function updateChecklistTaskStatus(taskId, status) {
+  return request(`${API_BASE}/resignations/checklist/${taskId}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
 export async function updateResignationStatus(id, status) {
   return request(`${API_BASE}/resignations/${id}/`, {
     method: 'PATCH',

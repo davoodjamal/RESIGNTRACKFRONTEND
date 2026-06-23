@@ -1,6 +1,38 @@
 import Icon from '../Icon';
 
-export default function OffboardingChecklist({ resignation, onStartInterview }) {
+export default function OffboardingChecklist({ resignation, onStartInterview, noticePeriodData, checklistTasks, onUpdateTaskStatus }) {
+  const noticePeriod = noticePeriodData ? noticePeriodData.notice_period : 30;
+
+  const isSubmitted = resignation && (resignation.status === 'Pending' || resignation.status === 'Approved');
+
+  const calculateDaysLeft = () => {
+    if (!isSubmitted) return 0;
+    if (noticePeriodData && noticePeriodData.has_active_resignation) {
+      return noticePeriodData.days_left;
+    }
+    if (!resignation || !resignation.relievingDate) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const relieving = new Date(resignation.relievingDate);
+    relieving.setHours(0, 0, 0, 0);
+    const diffTime = relieving.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+  const daysLeft = calculateDaysLeft();
+
+  const progressPercentage = isSubmitted ? (
+    noticePeriodData && noticePeriodData.has_active_resignation
+      ? noticePeriodData.progress_percentage
+      : Math.max(0, Math.min(100, Math.round(((noticePeriod - daysLeft) / noticePeriod) * 100)))
+  ) : 0;
+
+  const strokeDashoffset = 502.65 - (progressPercentage / 100) * 502.65;
+
+  const tasks = checklistTasks || [];
+  const completedTasksCount = tasks.filter(t => t.status === 'Completed').length;
+  const totalTasksCount = tasks.length;
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
       {/* Hero Header */}
@@ -17,16 +49,16 @@ export default function OffboardingChecklist({ resignation, onStartInterview }) 
             <div className="relative w-48 h-48 mb-6">
                <svg className="w-full h-full transform -rotate-90">
                   <circle className="text-[#3b494b]" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" strokeWidth="12"></circle>
-                  <circle className="text-[#00dbe9]" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" strokeWidth="12" strokeDasharray="502.65" strokeDashoffset="125.66" strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s ease-out' }}></circle>
+                  <circle className="text-[#00dbe9]" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" strokeWidth="12" strokeDasharray="502.65" strokeDashoffset={strokeDashoffset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s ease-out' }}></circle>
                </svg>
                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-5xl font-black text-[#e4e1e9]">14</span>
+                  <span className="text-5xl font-black text-[#e4e1e9]">{daysLeft}</span>
                   <span className="text-xs font-bold uppercase tracking-widest text-[#b9cacb] mt-1">Days Left</span>
                </div>
             </div>
             <p className="text-sm font-medium text-[#b9cacb]">
                Last working day:<br/>
-               <span className="font-bold text-[#e4e1e9]">{resignation?.relievingDate || 'October 24, 2023'}</span>
+               <span className="font-bold text-[#e4e1e9]">{isSubmitted ? resignation.relievingDate : 'Not Submitted'}</span>
             </p>
          </div>
 
@@ -34,46 +66,60 @@ export default function OffboardingChecklist({ resignation, onStartInterview }) 
          <div className="lg:col-span-8 bg-[#1f1f24] border border-[#3b494b] rounded-2xl p-8 shadow-sm">
             <div className="flex justify-between items-center mb-8">
                <h3 className="text-xl font-bold text-[#00dbe9]">Exit Checklist</h3>
-               <span className="bg-[#d8e2ff] text-[#001a42] px-4 py-1.5 rounded-full text-xs font-bold border border-[#00dbe9]/20">
-                  4 of 7 Completed
-               </span>
+               {isSubmitted && totalTasksCount > 0 && (
+                  <span className="bg-[#d8e2ff] text-[#001a42] px-4 py-1.5 rounded-full text-xs font-bold border border-[#00dbe9]/20">
+                     {completedTasksCount} of {totalTasksCount} Completed
+                  </span>
+               )}
             </div>
             <div className="space-y-4">
-               {/* Actionable Item 1 */}
-               <div className="group flex items-start gap-4 p-5 bg-[#2a292f] rounded-xl border border-[#3b494b] opacity-60">
-                  <div className="mt-0.5">
-                     <Icon className="text-[#00dbe9]" fill={true}>check_circle</Icon>
+               {!isSubmitted ? (
+                  <div className="text-center py-8 text-[#b9cacb] text-sm font-semibold">
+                     Please submit your resignation to see the offboarding checklist.
                   </div>
-                  <div className="flex-1">
-                     <p className="text-sm font-bold text-[#e4e1e9] line-through">Return Laptop & Accessories</p>
-                     <p className="text-xs font-medium text-[#b9cacb] mt-1">IT Department • Confirmed on Oct 10</p>
+               ) : tasks.length === 0 ? (
+                  <div className="text-center py-8 text-[#b9cacb] text-sm font-semibold">
+                     No offboarding tasks available.
                   </div>
-               </div>
-
-               {/* Actionable Item 2 */}
-               <div className="group flex items-start gap-4 p-5 bg-[#1f1f24] hover:bg-[#2a292f] rounded-xl transition-colors border border-[#3b494b] hover:border-[#00dbe9] cursor-pointer shadow-sm">
-                  <div className="mt-0.5">
-                     <Icon className="text-[#3b494b] group-hover:text-[#00dbe9] transition-colors">radio_button_unchecked</Icon>
-                  </div>
-                  <div className="flex-1">
-                     <p className="text-sm font-bold text-[#e4e1e9]">Complete Handover Documentation</p>
-                     <p className="text-xs font-medium text-[#b9cacb] mt-1">Upload final project files to shared drive.</p>
-                    {/* Upload Now button removed */}
-                  </div>
-                  <span className="bg-[#ffb4ab]/50 text-[#ffb4ab] px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border border-[#ffb4ab]/20">Pending</span>
-               </div>
-
-               {/* Actionable Item 3 */}
-               <div className="group flex items-start gap-4 p-5 bg-[#1f1f24] hover:bg-[#2a292f] rounded-xl transition-colors border border-[#3b494b] hover:border-[#00dbe9] cursor-pointer shadow-sm">
-                  <div className="mt-0.5">
-                     <Icon className="text-[#3b494b] group-hover:text-[#00dbe9] transition-colors">radio_button_unchecked</Icon>
-                  </div>
-                  <div className="flex-1">
-                     <p className="text-sm font-bold text-[#e4e1e9]">Revoke Access Cards</p>
-                     <p className="text-xs font-medium text-[#b9cacb] mt-1">Return to security desk on final day.</p>
-                  </div>
-                  <span className="bg-[#2a292f] text-[#b9cacb] px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border border-[#3b494b]">Scheduled</span>
-               </div>
+               ) : (
+                  tasks.map((task) => {
+                     const isTaskCompleted = task.status === 'Completed';
+                     const isTaskScheduled = task.status === 'Scheduled';
+                     return (
+                        <div 
+                           key={task.id} 
+                           className={`flex items-start gap-4 p-5 rounded-xl border border-[#3b494b] shadow-sm ${
+                              isTaskCompleted 
+                                 ? 'bg-[#2a292f] opacity-60' 
+                                 : 'bg-[#1f1f24]'
+                           }`}
+                        >
+                           <div className="mt-0.5">
+                              {isTaskCompleted ? (
+                                 <Icon className="text-[#00dbe9]" fill={true}>check_circle</Icon>
+                              ) : (
+                                 <Icon className="text-[#3b494b]">
+                                    {isTaskScheduled ? 'schedule' : 'radio_button_unchecked'}
+                                 </Icon>
+                              )}
+                           </div>
+                           <div className="flex-grow">
+                              <p className={`text-sm font-bold ${isTaskCompleted ? 'text-[#e4e1e9] line-through' : 'text-[#e4e1e9]'}`}>{task.title}</p>
+                              <p className="text-xs font-medium text-[#b9cacb] mt-1">{task.description}</p>
+                           </div>
+                           <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border ${
+                              isTaskCompleted 
+                                 ? 'bg-[#00dbe9]/10 text-[#00dbe9] border-[#00dbe9]/20' 
+                                 : isTaskScheduled 
+                                    ? 'bg-[#2a292f] text-[#b9cacb] border-[#3b494b]' 
+                                    : 'bg-[#ffb4ab]/10 text-[#ffb4ab] border-[#ffb4ab]/20'
+                           }`}>
+                              {task.status}
+                           </span>
+                        </div>
+                     );
+                  })
+               )}
             </div>
          </div>
 

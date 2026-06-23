@@ -16,6 +16,9 @@ export default function EmployeePortal({
   onSubmitResignation,
   onWithdrawResignation,
   systemSettings,
+  noticePeriodData,
+  checklistTasks,
+  onUpdateTaskStatus,
   onLogout,
   onUpdateProfile,
   onSaveExitInterview
@@ -35,6 +38,8 @@ export default function EmployeePortal({
             user={user} 
             resignation={employeeResignation} 
             systemSettings={systemSettings}
+            noticePeriodData={noticePeriodData}
+            checklistTasks={checklistTasks}
             onWithdraw={() => onWithdrawResignation(employeeResignation.id)}
           />
         ) : (
@@ -66,7 +71,16 @@ export default function EmployeePortal({
       case 'assets':
         return <AssetManagement user={user} resignation={employeeResignation} />;
       case 'offboarding':
-        return <OffboardingChecklist user={user} resignation={employeeResignation} onStartInterview={() => setActiveTab('exit-interview')} />;
+        return (
+          <OffboardingChecklist 
+            user={user} 
+            resignation={employeeResignation} 
+            noticePeriodData={noticePeriodData} 
+            checklistTasks={checklistTasks}
+            onUpdateTaskStatus={onUpdateTaskStatus}
+            onStartInterview={() => setActiveTab('exit-interview')} 
+          />
+        );
       case 'exit-interview':
         return (
           <ExitInterview 

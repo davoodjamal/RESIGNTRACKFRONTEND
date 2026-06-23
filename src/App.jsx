@@ -16,7 +16,11 @@ import {
   addAuditLog as apiAddAuditLog,
   fetchProfile,
   updateProfile,
-  submitExitInterview
+  submitExitInterview,
+  fetchNoticePeriod,
+  withdrawResignation,
+  fetchChecklistTasks,
+  updateChecklistTaskStatus
 } from './api';
 
 function App() {
@@ -34,6 +38,10 @@ function App() {
 
   // Shared Resignation Requests
   const [resignations, setResignations] = useState([]);
+
+  const [noticePeriodData, setNoticePeriodData] = useState(null);
+
+  const [checklistTasks, setChecklistTasks] = useState([]);
 
   // System Users configuration, editable by Admin
   const [users, setUsers] = useState([]);
@@ -79,15 +87,23 @@ function App() {
 
     const loadData = async () => {
       try {
-        const [settingsData, resignationsData, logsData, profileData] = await Promise.all([
+        const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData] = await Promise.all([
           fetchSettings(),
           fetchResignations(),
           fetchAuditLogs(),
           fetchProfile().catch(() => null),
+          user.role === 'employee' ? fetchNoticePeriod().catch(() => null) : Promise.resolve(null),
+          user.role === 'employee' ? fetchChecklistTasks().catch(() => []) : Promise.resolve([]),
         ]);
         setSystemSettings(settingsData);
         setResignations(resignationsData);
         setAuditLogs(logsData);
+        if (noticePeriodInfo) {
+          setNoticePeriodData(noticePeriodInfo);
+        }
+        if (checklistData) {
+          setChecklistTasks(checklistData);
+        }
         if (profileData) {
           const updatedUser = {
             ...user,
@@ -162,6 +178,8 @@ function App() {
       return [createdResignation, ...filtered];
     });
     addAuditLog(`Exit request submitted: Employee [${createdResignation.email}] filed resignation (${createdResignation.reason}).`);
+    fetchNoticePeriod().then(setNoticePeriodData).catch(console.error);
+    fetchChecklistTasks().then(setChecklistTasks).catch(console.error);
   };
 
   const handleWithdrawResignation = async (resignationId) => {
@@ -169,9 +187,21 @@ function App() {
       const updated = await withdrawResignation(resignationId);
       setResignations(prev => prev.map(r => r.id === resignationId ? updated : r));
       addAuditLog(`Exit request withdrawn: Employee [${updated.email}] withdrew resignation.`);
+      setNoticePeriodData(null);
+      setChecklistTasks([]);
       alert('Resignation withdrawn successfully.');
     } catch (err) {
       alert(err.message || 'Failed to withdraw resignation');
+    }
+  };
+
+  const handleUpdateChecklistTaskStatus = async (taskId, status) => {
+    try {
+      const updatedTask = await updateChecklistTaskStatus(taskId, status);
+      setChecklistTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+      addAuditLog(`Exit checklist task updated: [${updatedTask.title}] status set to ${status.toUpperCase()}.`);
+    } catch (err) {
+      alert(err.message || 'Failed to update task status');
     }
   };
 
@@ -276,6 +306,9 @@ function App() {
         onSubmitResignation={handleSubmitResignation}
         onWithdrawResignation={handleWithdrawResignation}
         systemSettings={systemSettings}
+        noticePeriodData={noticePeriodData}
+        checklistTasks={checklistTasks}
+        onUpdateTaskStatus={handleUpdateChecklistTaskStatus}
         onLogout={handleLogout}
         onUpdateProfile={handleUpdateProfile}
         onSaveExitInterview={handleSaveExitInterview}
