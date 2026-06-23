@@ -64,7 +64,7 @@ export default function EmployeeDetails({ employeeId, onBack }) {
 
   if (error || !employee) {
     const isNotFound = error && (error.includes('404') || error.toLowerCase().includes('not found'));
-    
+
     return (
       <div className="pt-24 px-8 pb-12 max-w-[800px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
         <button
@@ -83,7 +83,7 @@ export default function EmployeeDetails({ employeeId, onBack }) {
               {isNotFound ? 'Employee Not Found' : 'Failed to Load Profile'}
             </h3>
             <p className="text-[#b9cacb] text-sm max-w-md mx-auto px-4">
-              {isNotFound 
+              {isNotFound
                 ? "The employee you requested does not exist in the system. Please verify the ID and try again."
                 : `We encountered an issue communicating with the server: ${error}`}
             </p>
@@ -348,9 +348,8 @@ export default function EmployeeDetails({ employeeId, onBack }) {
                   {employee.tasks.map((task, idx) => (
                     <div key={idx} className="p-3 bg-[#131318] rounded-lg border border-[#3b494b] flex justify-between items-center">
                       <span className="text-sm font-semibold">{task.name}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        task.status === 'Completed' ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.status === 'Completed' ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'
+                        }`}>
                         {task.status}
                       </span>
                     </div>

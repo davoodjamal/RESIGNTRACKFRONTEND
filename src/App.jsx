@@ -16,7 +16,12 @@ import {
   addAuditLog as apiAddAuditLog,
   fetchProfile,
   updateProfile,
-  submitExitInterview
+  submitExitInterview,
+  fetchAssets,
+  createAsset,
+  updateAssetStatus,
+  assignAsset,
+  returnAsset
 } from './api';
 
 function App() {
@@ -38,39 +43,60 @@ function App() {
   // System Users configuration, editable by Admin
   const [users, setUsers] = useState([]);
 
-  // Simulated assets state to prevent reference errors in Admin and HR portals
-  const [assets, setAssets] = useState([
-    { id: '1', name: 'MacBook Pro 16"', type: 'Laptop', serial: 'C02F2345Q6W7', status: 'Assigned', assignedTo: 'davood@resigntrack.com' },
-    { id: '2', name: 'Dell UltraSharp 27"', type: 'Monitor', serial: 'CN-098765-ABCD', status: 'Available', assignedTo: '' },
-    { id: '3', name: 'iPhone 15 Pro', type: 'Mobile', serial: 'DNP987654321', status: 'Available', assignedTo: '' }
-  ]);
+  // Real assets state synced with database
+  const [assets, setAssets] = useState([]);
 
-  const [assetAuditTrail, setAssetAuditTrail] = useState([
-    { id: '1', assetId: '1', action: 'Assign', performedBy: 'hr@resigntrack.com', date: '2026-06-10', notes: 'Assigned to Davood jamal' }
-  ]);
+  const assetAuditTrail = auditLogs
+    .filter(log => log.actionType && log.actionType.startsWith('Asset'))
+    .map(log => ({
+      id: log.id,
+      action: log.message,
+      time: log.time || new Date(log.timestamp).toLocaleTimeString()
+    }));
 
-  const handleAssignAsset = (assetId, email) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: 'Assigned', assignedTo: email } : a));
-    setAssetAuditTrail(prev => [
-      { id: Date.now().toString(), assetId, action: 'Assign', performedBy: user?.email || 'System', date: new Date().toISOString().split('T')[0], notes: `Assigned to ${email}` },
-      ...prev
-    ]);
+  const handleAssignAsset = async (assetId, employee) => {
+    try {
+      const email = employee?.email || employee;
+      await assignAsset(assetId, email);
+      const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
+      setAssets(assetsData);
+      setAuditLogs(logsData);
+    } catch (err) {
+      alert(err.message || 'Failed to assign asset');
+    }
   };
 
-  const handleReturnAsset = (assetId) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: 'Available', assignedTo: '' } : a));
-    setAssetAuditTrail(prev => [
-      { id: Date.now().toString(), assetId, action: 'Return', performedBy: user?.email || 'System', date: new Date().toISOString().split('T')[0], notes: 'Returned to inventory' },
-      ...prev
-    ]);
+  const handleReturnAsset = async (assetId, returnDetails = {}) => {
+    try {
+      await returnAsset(assetId, returnDetails);
+      const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
+      setAssets(assetsData);
+      setAuditLogs(logsData);
+    } catch (err) {
+      alert(err.message || 'Failed to return asset');
+    }
   };
 
-  const handleUpdateAssetStatus = (assetId, status) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status } : a));
+  const handleUpdateAssetStatus = async (assetId, status) => {
+    try {
+      await updateAssetStatus(assetId, status);
+      const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
+      setAssets(assetsData);
+      setAuditLogs(logsData);
+    } catch (err) {
+      alert(err.message || 'Failed to update asset status');
+    }
   };
 
-  const handleCreateAsset = (newAsset) => {
-    setAssets(prev => [...prev, { ...newAsset, id: (prev.length + 1).toString() }]);
+  const handleCreateAsset = async (newAsset) => {
+    try {
+      await createAsset(newAsset);
+      const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
+      setAssets(assetsData);
+      setAuditLogs(logsData);
+    } catch (err) {
+      alert(err.message || 'Failed to create asset');
+    }
   };
 
   // Load data when user state changes
@@ -88,6 +114,12 @@ function App() {
         setSystemSettings(settingsData);
         setResignations(resignationsData);
         setAuditLogs(logsData);
+
+        if (profileData?.role === 'hr' || profileData?.role === 'admin' || user.role === 'hr' || user.role === 'admin') {
+          const assetsData = await fetchAssets();
+          setAssets(assetsData);
+        }
+
         if (profileData) {
           const updatedUser = {
             ...user,

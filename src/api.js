@@ -273,3 +273,89 @@ export async function fetchSystemUsageSnapshot() {
 export function getSystemUsageStreamUrl() {
   return `${API_BASE}/v1/admin/analytics/system-usage/stream/`;
 }
+
+// ─── Asset Management ─────────────────────────────────────
+export async function fetchAssets() {
+  return request(`${API_BASE}/assets/`);
+}
+
+export async function createAsset(data) {
+  return request(`${API_BASE}/assets/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAssetStatus(id, status) {
+  return request(`${API_BASE}/assets/${id}/maintenance/`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function assignAsset(id, email) {
+  return request(`${API_BASE}/assets/${id}/assign/`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function returnAsset(id, data) {
+  return request(`${API_BASE}/assets/${id}/return/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchAssetDashboard() {
+  return request(`${API_BASE}/assets/dashboard/`);
+}
+
+export async function fetchEmployees() {
+  return request(`${API_BASE}/employees/`);
+}
+
+// ─── Exit Interview & Meetings API ───────────────────────
+export async function fetchExitInterviews(params = {}) {
+  const query = new URLSearchParams();
+  if (params.search) query.append('search', params.search);
+  if (params.reason) query.append('reason', params.reason);
+  if (params.department) query.append('department', params.department);
+  if (params.ordering) query.append('ordering', params.ordering);
+  const queryString = query.toString();
+  return request(`${API_BASE}/exit-interviews/${queryString ? `?${queryString}` : ''}`);
+}
+
+export async function fetchLatestExitInterview() {
+  return request(`${API_BASE}/exit-interviews/latest/`);
+}
+
+export async function fetchExitAnalytics() {
+  return request(`${API_BASE}/exit-interviews/analytics/`);
+}
+
+export async function fetchMeetings() {
+  return request(`${API_BASE}/meetings/`);
+}
+
+export async function createMeeting(data) {
+  return request(`${API_BASE}/meetings/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateMeeting(id, data) {
+  return request(`${API_BASE}/meetings/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteMeeting(id) {
+  return request(`${API_BASE}/meetings/${id}/`, {
+    method: 'DELETE',
+  });
+}
+
+
