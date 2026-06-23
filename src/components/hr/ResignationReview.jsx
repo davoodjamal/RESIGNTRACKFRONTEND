@@ -1,26 +1,109 @@
+import { useState, useEffect } from 'react';
 import Icon from '../Icon';
 import OffboardingApprovalModal from './OffboardingApprovalModal';
 import OffboardingProcess from './OffboardingProcess';
+import { fetchResignationChecklistTasksForHR, updateChecklistTaskStatus } from '../../api';
 
-export default function ResignationReview() {
+export default function ResignationReview({
+  resignations,
+  onUpdateStatus,
+  setActiveTab,
+  selectedEmployee,
+  assets,
+  onReturnAsset
+}) {
+  const activeResignation = resignations?.find(r => r.email === selectedEmployee?.email);
+  const [checklistTasks, setChecklistTasks] = useState([]);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+
+  useEffect(() => {
+    if (activeResignation) {
+      fetchResignationChecklistTasksForHR(activeResignation.id)
+        .then(setChecklistTasks)
+        .catch(console.error);
+    }
+  }, [activeResignation]);
+
+  const handleTaskToggle = async (taskId, currentStatus) => {
+    const nextStatus = currentStatus === 'Completed' ? 'Pending' : 'Completed';
+    try {
+      const updated = await updateChecklistTaskStatus(taskId, nextStatus);
+      setChecklistTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+    } catch (err) {
+      alert(err.message || 'Failed to update checklist task');
+    }
+  };
+
+  const handleApprovalConfirm = async () => {
+    if (!activeResignation) return;
+    try {
+      await onUpdateStatus(activeResignation.id, 'Approved');
+      setShowApprovalModal(false);
+      setActiveTab('Dashboard');
+    } catch (err) {
+      alert(err.message || 'Failed to approve resignation');
+    }
+  };
+
+  const handleRejectResignation = async () => {
+    if (!activeResignation) return;
+    if (!window.confirm('Are you sure you want to reject this resignation request?')) return;
+    try {
+      await onUpdateStatus(activeResignation.id, 'Rejected');
+      setActiveTab('Dashboard');
+    } catch (err) {
+      alert(err.message || 'Failed to reject resignation');
+    }
+  };
+
+  const completedCount = checklistTasks.filter(t => t.status === 'Completed').length;
+  const totalCount = checklistTasks.length;
+
+  if (!activeResignation) {
+    return (
+      <div className="pt-24 px-8 pb-12 text-center text-[#b9cacb] max-w-[1400px] mx-auto">
+        <h2 className="text-xl font-bold text-[#ffb4ab]">No active resignation found for this case.</h2>
+        <button 
+          onClick={() => setActiveTab('Dashboard')}
+          className="mt-4 px-6 py-2.5 bg-[#00dbe9] text-white rounded-lg text-xs font-semibold hover:opacity-90 transition-all"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const stepStatusClass = (step) => {
+    if (activeResignation.status === step) {
+      return 'border-2 border-[#00dbe9] text-[#00dbe9]';
+    }
+    const order = ['Pending', 'Approved'];
+    const currentIdx = order.indexOf(activeResignation.status);
+    const stepIdx = order.indexOf(step);
+    if (currentIdx > stepIdx) {
+      return 'bg-[#00dbe9] text-white';
+    }
+    return 'border-2 border-[#3b494b] text-[#b9cacb]';
+  };
+
   return (
     <div className="pt-24 pb-12 px-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
       {/* Header Section with Real-time Status */}
       <div className="flex justify-between items-end">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[#b9cacb] text-xs font-medium">
-            <span className="hover:text-[#00dbe9] transition-colors cursor-pointer">Resignations</span>
+            <span onClick={() => setActiveTab('Dashboard')} className="hover:text-[#00dbe9] transition-colors cursor-pointer">Resignations</span>
             <Icon className="text-[14px]">chevron_right</Icon>
-            <span>Case #RES-88219</span>
+            <span>Case #RES-{activeResignation.id}</span>
           </div>
-          <h2 className="text-2xl font-bold text-[#00dbe9]">Resignation Review: Marcus Thorne</h2>
+          <h2 className="text-2xl font-bold text-[#00dbe9]">Resignation Review: {activeResignation.name}</h2>
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className="flex items-center gap-2 bg-[#00dbe9]/10 text-[#00dbe9] px-4 py-2 rounded-lg text-xs font-medium border border-[#00dbe9]/20">
             <span className="w-2 h-2 bg-[#00dbe9] rounded-full animate-pulse"></span>
-            REAL-TIME STATUS: UNDER REVIEW
+            STATUS: {activeResignation.status.toUpperCase()}
           </span>
-          <p className="text-[#b9cacb] text-xs font-medium">Last updated: 14 mins ago</p>
+          <p className="text-[#b9cacb] text-xs font-medium">Employee Email: {activeResignation.email}</p>
         </div>
       </div>
 
@@ -34,7 +117,7 @@ export default function ResignationReview() {
             <div className="flex items-center justify-between relative px-12">
               {/* Progress Line */}
               <div className="absolute top-4 left-12 right-12 h-0.5 bg-[#3b494b] -z-0">
-                <div className="h-full bg-[#00dbe9] w-1/2"></div>
+                <div className="h-full bg-[#00dbe9]" style={{ width: activeResignation.status === 'Approved' ? '100%' : '50%' }}></div>
               </div>
               {/* Step 1 */}
               <div className="relative z-10 flex flex-col items-center gap-2">
@@ -42,23 +125,23 @@ export default function ResignationReview() {
                   <Icon className="text-[18px]">check</Icon>
                 </div>
                 <span className="text-xs font-medium text-[#00dbe9]">Submitted</span>
-                <span className="text-[10px] text-[#b9cacb] uppercase">Oct 12, 2023</span>
+                <span className="text-[10px] text-[#b9cacb] uppercase">{activeResignation.submissionDate}</span>
               </div>
               {/* Step 2 */}
               <div className="relative z-10 flex flex-col items-center gap-2">
-                <div className="w-8 h-8 bg-[#1f1f24] border-2 border-[#00dbe9] text-[#00dbe9] rounded-full flex items-center justify-center font-bold">
-                  2
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold bg-[#1f1f24] ${stepStatusClass('Pending')}`}>
+                  {activeResignation.status === 'Approved' ? <Icon className="text-[18px]">check</Icon> : '2'}
                 </div>
-                <span className="text-xs font-bold text-[#00dbe9]">Under Review</span>
+                <span className={`text-xs font-bold ${activeResignation.status === 'Pending' ? 'text-[#00dbe9]' : 'text-[#b9cacb]'}`}>Under Review</span>
                 <span className="text-[10px] text-[#b9cacb] uppercase">In Progress</span>
               </div>
               {/* Step 3 */}
               <div className="relative z-10 flex flex-col items-center gap-2">
-                <div className="w-8 h-8 bg-[#1f1f24] border-2 border-[#3b494b] text-[#b9cacb] rounded-full flex items-center justify-center font-bold">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold bg-[#1f1f24] ${stepStatusClass('Approved')}`}>
                   3
                 </div>
-                <span className="text-xs font-medium text-[#b9cacb]">Approved</span>
-                <span className="text-[10px] text-[#b9cacb] uppercase">Pending</span>
+                <span className={`text-xs font-medium ${activeResignation.status === 'Approved' ? 'text-[#00dbe9]' : 'text-[#b9cacb]'}`}>Approved</span>
+                <span className="text-[10px] text-[#b9cacb] uppercase">Final Stage</span>
               </div>
             </div>
           </div>
@@ -67,21 +150,21 @@ export default function ResignationReview() {
           <div className="bg-[#1f1f24] p-6 rounded-lg shadow-sm border border-[#3b494b] grid grid-cols-2 gap-6">
             <div className="col-span-2 border-b border-[#3b494b] pb-4 mb-4 flex justify-between items-center">
               <h3 className="text-xl font-semibold">Employee Details</h3>
-              <span className="text-xs font-medium text-[#b9cacb]">ID: EMP-4402</span>
+              <span className="text-xs font-medium text-[#b9cacb]">ID: EMP-{activeResignation.id}</span>
             </div>
             <div className="space-y-6">
               <div>
                 <label className="text-xs font-medium text-[#b9cacb] block mb-1 uppercase">Position</label>
-                <p className="text-base font-semibold">Senior Frontend Architect</p>
+                <p className="text-base font-semibold">{selectedEmployee?.role || activeResignation.department || 'Employee'}</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-[#b9cacb] block mb-1 uppercase">Department</label>
-                <p className="text-base">Product & Engineering</p>
+                <p className="text-base">{activeResignation.department || 'General'}</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-[#b9cacb] block mb-1 uppercase">Reason for leaving</label>
                 <div className="bg-[#2a292f] p-4 rounded-lg border border-[#3b494b] italic text-[#b9cacb] text-sm">
-                  "Pursuing a new opportunity in a different industry that aligns better with my long-term career goals in AI research."
+                  "{activeResignation.reason || 'Not specified'}"
                 </div>
               </div>
             </div>
@@ -89,22 +172,13 @@ export default function ResignationReview() {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-xs font-medium text-[#b9cacb] block mb-1 uppercase">Last Working Day</label>
-                  <p className="text-base font-bold text-[#ffb4ab]">November 15, 2023</p>
+                  <p className="text-base font-bold text-[#ffb4ab]">{activeResignation.relievingDate}</p>
                 </div>
                 <Icon className="text-[#b9cacb]">calendar_today</Icon>
               </div>
               <div>
-                <label className="text-xs font-medium text-[#b9cacb] block mb-1 uppercase">Notice Period</label>
-                <p className="text-base">30 Days (Standard Contract)</p>
-              </div>
-              <div className="p-4 bg-[#00dbe9]/20 rounded-lg border border-[#00dbe9]">
-                <p className="text-xs font-bold text-[#505f76] mb-1 uppercase">Risk Assessment</p>
-                <div className="flex items-center gap-4">
-                  <span className="w-full bg-[#3b494b] h-2 rounded-full overflow-hidden">
-                    <span className="block bg-amber-500 h-full w-[40%]"></span>
-                  </span>
-                  <span className="text-xs font-medium text-[#b9cacb]">Low-Medium</span>
-                </div>
+                <label className="text-xs font-medium text-[#b9cacb] block mb-1 uppercase">Comments</label>
+                <p className="text-sm text-[#e4e1e9]">{activeResignation.comments || 'No comments'}</p>
               </div>
             </div>
           </div>
@@ -116,26 +190,25 @@ export default function ResignationReview() {
               <h3 className="text-xl font-semibold">Approval Workflow</h3>
             </div>
             <div className="space-y-6">
-              <div>
-                <label className="text-xs font-medium text-[#b9cacb] block mb-2 uppercase">Reviewer Comments</label>
-                <textarea
-                  className="w-full rounded-lg border border-[#3b494b] focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/20 text-sm p-4 outline-none"
-                  placeholder="Add notes for the HR director or employee..."
-                  rows="4"
-                ></textarea>
-              </div>
-              <div className="flex justify-end gap-4">
-                <button className="px-6 py-4 border border-[#b9cacb] text-[#e4e1e9] text-xs font-medium rounded-lg hover:bg-[#2a292f] transition-all">
-                  Request More Info
-                </button>
-                <button className="px-6 py-4 border border-[#ffb4ab] text-[#ffb4ab] text-xs font-medium rounded-lg hover:bg-[#ffb4ab] transition-all">
-                  Reject Resignation
-                </button>
-                <button className="px-6 py-4 bg-[#00dbe9] text-white text-xs font-medium rounded-lg hover:opacity-90 transition-all flex items-center gap-2">
-                  <Icon className="text-[18px]">check_circle</Icon>
-                  Approve Resignation
-                </button>
-              </div>
+              {activeResignation.status === 'Pending' ? (
+                <div className="flex justify-end gap-4">
+                  <button 
+                    onClick={handleRejectResignation} 
+                    className="px-6 py-4 border border-[#ffb4ab] text-[#ffb4ab] text-xs font-medium rounded-lg hover:bg-[#ffb4ab]/10 transition-all"
+                  >
+                    Reject Resignation
+                  </button>
+                  <button 
+                    onClick={() => setShowApprovalModal(true)} 
+                    className="px-6 py-4 bg-[#00dbe9] text-[#131318] text-xs font-bold rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
+                  >
+                    <Icon className="text-[18px]">check_circle</Icon>
+                    Approve Resignation
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-[#b9cacb] italic">This resignation is {activeResignation.status}. No workflow actions are pending.</p>
+              )}
             </div>
           </div>
         </div>
@@ -146,34 +219,41 @@ export default function ResignationReview() {
           <div className="bg-[#1f1f24] p-6 rounded-lg shadow-sm border border-[#3b494b]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold">Exit Checklist</h3>
-              <span className="text-xs font-medium text-[#b9cacb]">2/3 Complete</span>
+              <span className="text-xs font-medium text-[#b9cacb]">{completedCount}/{totalCount} Complete</span>
             </div>
             <div className="space-y-4">
-              <label className="flex items-center gap-4 p-4 bg-[#2a292f] rounded-lg border border-[#3b494b] cursor-pointer hover:bg-[#2a292f] transition-all">
-                <input checked readOnly className="rounded text-[#00dbe9] focus:ring-[#00dbe9] h-5 w-5" type="checkbox" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold">Initial HR Interview</span>
-                  <span className="text-xs font-medium text-[#b9cacb]">Completed Oct 13</span>
-                </div>
-              </label>
-              <label className="flex items-center gap-4 p-4 border border-dashed border-[#3b494b] rounded-lg cursor-pointer hover:bg-[#2a292f] transition-all">
-                <input className="rounded text-[#00dbe9] focus:ring-[#00dbe9] h-5 w-5" type="checkbox" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold">Return Laptop & Assets</span>
-                  <span className="text-xs font-medium text-[#b9cacb]">Pending - Nov 15</span>
-                </div>
-              </label>
-              <label className="flex items-center gap-4 p-4 border border-dashed border-[#3b494b] rounded-lg cursor-pointer hover:bg-[#2a292f] transition-all">
-                <input className="rounded text-[#00dbe9] focus:ring-[#00dbe9] h-5 w-5" type="checkbox" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold">Revoke Access Rights</span>
-                  <span className="text-xs font-medium text-[#b9cacb]">Scheduled - Nov 15</span>
-                </div>
-              </label>
+              {checklistTasks.length === 0 ? (
+                <p className="text-sm text-[#b9cacb] text-center py-4">No exit checklist tasks generated yet.</p>
+              ) : (
+                checklistTasks.map((task) => {
+                  const isTaskCompleted = task.status === 'Completed';
+                  const isTaskScheduled = task.status === 'Scheduled';
+                  return (
+                    <label 
+                      key={task.id} 
+                      className={`flex items-center gap-4 p-4 rounded-lg border transition-all cursor-pointer ${
+                        isTaskCompleted 
+                          ? 'bg-[#2a292f] border-[#3b494b]' 
+                          : isTaskScheduled 
+                            ? 'border-dashed border-[#3b494b] hover:bg-[#2a292f]' 
+                            : 'border-dashed border-[#3b494b] hover:bg-[#2a292f] hover:border-[#00dbe9]'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={isTaskCompleted}
+                        onChange={() => handleTaskToggle(task.id, task.status)}
+                        className="rounded text-[#00dbe9] focus:ring-[#00dbe9] h-5 w-5 cursor-pointer" 
+                      />
+                      <div className="flex flex-col flex-1">
+                        <span className={`text-sm font-semibold ${isTaskCompleted ? 'line-through text-[#b9cacb]' : ''}`}>{task.title}</span>
+                        <span className="text-xs font-medium text-[#b9cacb]">{task.description}</span>
+                      </div>
+                    </label>
+                  );
+                })
+              )}
             </div>
-            <button className="w-full mt-6 py-4 border border-[#00dbe9] text-[#00dbe9] rounded-lg text-xs font-medium hover:bg-[#00dbe9]/5 transition-all flex justify-center items-center">
-              Manage Tasks
-            </button>
           </div>
 
           {/* Stakeholders Card */}
