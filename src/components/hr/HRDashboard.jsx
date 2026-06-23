@@ -82,8 +82,8 @@ export default function HRDashboard() {
                   { month: 'Jun', height: '70%', active: true }
                 ].map((item, idx) => (
                   <div key={idx} className="flex flex-col items-center flex-1 gap-2">
-                    <div 
-                      className={`w-full rounded-t-sm transition-all ${item.active ? 'bg-[#00dbe9]' : 'bg-[#00dbe9]/20 hover:bg-[#00dbe9]/30'}`} 
+                    <div
+                      className={`w-full rounded-t-sm transition-all ${item.active ? 'bg-[#00dbe9]' : 'bg-[#00dbe9]/20 hover:bg-[#00dbe9]/30'}`}
                       style={{ height: item.height }}
                     ></div>
                     <span className={`text-xs ${item.active ? 'font-semibold text-[#00dbe9]' : 'font-medium text-[#b9cacb]'}`}>{item.month}</span>

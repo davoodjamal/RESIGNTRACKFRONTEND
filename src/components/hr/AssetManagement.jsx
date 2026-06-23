@@ -358,7 +358,7 @@ export default function AssetManagement({
                 <Icon className="text-[#00dbe9]">add_box</Icon>
                 Register New Asset
               </h3>
-              <button 
+              <button
                 onClick={() => setShowCreateModal(false)}
                 className="text-[#b9cacb] hover:text-[#e4e1e9] transition-colors"
               >

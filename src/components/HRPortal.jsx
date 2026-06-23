@@ -5,6 +5,7 @@ import LogoutConfirmationModal from './admin/LogoutConfirmationModal';
 
 import HRDashboard from './hr/HRDashboard';
 import EmployeeDirectory from './hr/EmployeeDirectory';
+import EmployeeDetails from './hr/EmployeeDetails';
 import ResignationReview from './hr/ResignationReview';
 import ExitInterviewsList from './hr/ExitInterviewsList';
 import TaskManagement from './hr/TaskManagement';
@@ -28,6 +29,7 @@ export default function HRPortal({
 }) {
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -47,7 +49,15 @@ export default function HRPortal({
       case 'Dashboard':
         return <HRDashboard resignations={resignations} setActiveTab={setActiveTab} />;
       case 'Directory':
-        return <EmployeeDirectory setActiveTab={setActiveTab} setSelectedEmployee={setSelectedEmployee} />;
+        if (selectedEmployeeId) {
+          return (
+            <EmployeeDetails
+              employeeId={selectedEmployeeId}
+              onBack={() => setSelectedEmployeeId(null)}
+            />
+          );
+        }
+        return <EmployeeDirectory onEmployeeClick={(id) => setSelectedEmployeeId(id)} />;
       case 'Resignations':
         return (
           <ResignationReview
@@ -87,7 +97,7 @@ export default function HRPortal({
     <div className="min-h-screen bg-[#131318] text-[#e4e1e9] flex">
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-[#00000080] z-40 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -104,20 +114,22 @@ export default function HRPortal({
             <Icon>close</Icon>
           </button>
         </div>
-        
+
         <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => {
                 setActiveTab(tab.id);
+                if (tab.id === 'Directory') {
+                  setSelectedEmployeeId(null);
+                }
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center h-12 px-4 rounded-lg transition-colors font-medium text-[16px] tracking-[0.02em] ${
-                activeTab === tab.id
-                  ? 'bg-[#00dbe9]/20 text-[#00dbe9] font-bold border-r-4 border-[#00dbe9]'
-                  : 'text-[#b9cacb] hover:bg-[#2a292f]'
-              }`}
+              className={`w-full flex items-center h-12 px-4 rounded-lg transition-colors font-medium text-[16px] tracking-[0.02em] ${activeTab === tab.id
+                ? 'bg-[#00dbe9]/20 text-[#00dbe9] font-bold border-r-4 border-[#00dbe9]'
+                : 'text-[#b9cacb] hover:bg-[#2a292f]'
+                }`}
             >
               <Icon className={`mr-4 text-[24px] ${activeTab === tab.id ? '' : 'opacity-80'}`} style={activeTab === tab.id ? { fontVariationSettings: "'FILL' 1" } : {}}>
                 {tab.icon}
@@ -135,7 +147,7 @@ export default function HRPortal({
             <Icon className="mr-4 text-[24px]">help_outline</Icon>
             Help Center
           </button>
-          <button 
+          <button
             onClick={() => setShowLogoutModal(true)}
             className="w-full flex items-center h-12 px-4 text-[#ffb4ab] hover:bg-[#ffb4ab]/20 rounded-lg transition-colors font-medium text-[16px] tracking-[0.02em]"
           >
@@ -150,7 +162,7 @@ export default function HRPortal({
         {/* Top App Bar */}
         <header className="sticky top-0 w-full flex justify-between items-center h-16 px-6 bg-[#1f1f24]/90 backdrop-blur-sm z-30 border-b border-[#3b494b]">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               className="md:hidden text-[#b9cacb]"
               onClick={() => setIsMobileMenuOpen(true)}
             >
