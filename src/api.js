@@ -313,35 +313,23 @@ export async function createAsset(data) {
 export async function updateAssetStatus(id, status) {
   return request(`${API_BASE}/assets/${id}/maintenance/`, {
     method: 'POST',
-    export async function updateAssetStatus(assetId, status) {
-    return request(`${API_BASE}/assets/${assetId}/`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-  }
+    body: JSON.stringify({ status }),
+  });
+}
 
 export async function assignAsset(id, email) {
-    return request(`${API_BASE}/assets/${id}/assign/`, {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  }
+  return request(`${API_BASE}/assets/${id}/assign/`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
 
-  export async function returnAsset(id, data) {
-    return request(`${API_BASE}/assets/${id}/return/`, {
-      export async function assignAsset(assetId, employee) {
-      return request(`${API_BASE}/assets/${assetId}/assign/`, {
-        method: 'POST',
-        body: JSON.stringify({ email: employee.email || employee }),
-      });
-    }
-
-export async function returnAsset(assetId, returnDetails) {
-      return request(`${API_BASE}/assets/${assetId}/return/`, {
-        method: 'POST',
-        body: JSON.stringify(returnDetails),
-      });
-    }
+export async function returnAsset(id, data) {
+  return request(`${API_BASE}/assets/${id}/return/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
 
     // ─── Reschedule Requests ─────────────────────────────────
     export async function createRescheduleRequest(data) {

@@ -8,7 +8,8 @@ import {
   fetchEmployees,
   createMeeting,
   updateMeeting,
-  deleteMeeting
+  deleteMeeting,
+  fetchRescheduleRequests
 } from '../../api';
 
 const defaultImages = {
@@ -34,7 +35,7 @@ const getReasonColor = (reason) => {
   return exitReasonColors[reason] || 'bg-[#505f76]';
 };
 
-export default function ExitInterviewsList() {
+export default function ExitInterviewsList({ resignations, onUpdateStatus, onDecideRescheduleRequest }) {
   const [exitInterviews, setExitInterviews] = useState([]);
   const [latestInterview, setLatestInterview] = useState(null);
   const [analytics, setAnalytics] = useState({ totalExits: 0, reasons: [] });
@@ -60,6 +61,15 @@ export default function ExitInterviewsList() {
   const [meetingError, setMeetingError] = useState(null);
   const [meetingSuccess, setMeetingSuccess] = useState(null);
   const [meetingSubmitting, setMeetingSubmitting] = useState(false);
+
+  const [rescheduleRequests, setRescheduleRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [decisionPendingId, setDecisionPendingId] = useState(null);
+  const [rejectingRequestId, setRejectingRequestId] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [submittingDecision, setSubmittingDecision] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const loadData = async () => {
     try {
@@ -157,87 +167,65 @@ export default function ExitInterviewsList() {
     }
   };
 
-  if (loading && exitInterviews.length === 0) {
-    return (
-      <div className="pt-32 pb-16 flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <span className="animate-spin material-symbols-outlined text-[48px] text-[#00dbe9]">progress_activity</span>
-        <p className="text-[#b9cacb] text-sm">Fetching exit data...</p>
-      </div>
-    );
-  }
+  const loadRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const data = await fetchRescheduleRequests();
+      setRescheduleRequests(data);
+    } catch (err) {
+      console.error("Failed to fetch reschedule requests:", err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
 
-  import { fetchRescheduleRequests } from '../../api';
+  const handleApprove = async (reqId) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setDecisionPendingId(reqId);
+    setSubmittingDecision(true);
+    try {
+      await onDecideRescheduleRequest(reqId, 'Approved', '');
+      setSuccessMsg('Reschedule request approved successfully.');
+      await loadRequests();
+      // Hide success message after 4s
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to approve request.');
+    } finally {
+      setSubmittingDecision(false);
+      setDecisionPendingId(null);
+    }
+  };
 
-  export default function ExitInterviewsList({ resignations, onUpdateStatus, onDecideRescheduleRequest }) {
-    const [rescheduleRequests, setRescheduleRequests] = useState([]);
-    const [loadingRequests, setLoadingRequests] = useState(true);
-    const [decisionPendingId, setDecisionPendingId] = useState(null);
-    const [rejectingRequestId, setRejectingRequestId] = useState(null);
-    const [rejectionReason, setRejectionReason] = useState('');
-    const [submittingDecision, setSubmittingDecision] = useState(false);
-    const [errorMsg, setErrorMsg] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
+  const handleRejectSubmit = async (e) => {
+    e.preventDefault();
+    if (!rejectionReason.trim()) {
+      setErrorMsg('Rejection reason is mandatory.');
+      return;
+    }
+    setErrorMsg('');
+    setSuccessMsg('');
+    setSubmittingDecision(true);
+    try {
+      await onDecideRescheduleRequest(rejectingRequestId, 'Rejected', rejectionReason.trim());
+      setSuccessMsg('Reschedule request rejected successfully.');
+      setRejectingRequestId(null);
+      setRejectionReason('');
+      await loadRequests();
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to reject request.');
+    } finally {
+      setSubmittingDecision(false);
+    }
+  };
 
-    useEffect(() => {
-      loadRequests();
-    }, []);
-
-    const loadRequests = async () => {
-      setLoadingRequests(true);
-      try {
-        const data = await fetchRescheduleRequests();
-        setRescheduleRequests(data);
-      } catch (err) {
-        console.error("Failed to fetch reschedule requests:", err);
-      } finally {
-        setLoadingRequests(false);
-      }
-    };
-
-    const handleApprove = async (reqId) => {
-      setErrorMsg('');
-      setSuccessMsg('');
-      setDecisionPendingId(reqId);
-      setSubmittingDecision(true);
-      try {
-        await onDecideRescheduleRequest(reqId, 'Approved', '');
-        setSuccessMsg('Reschedule request approved successfully.');
-        await loadRequests();
-        // Hide success message after 4s
-        setTimeout(() => setSuccessMsg(''), 4000);
-      } catch (err) {
-        setErrorMsg(err.message || 'Failed to approve request.');
-      } finally {
-        setSubmittingDecision(false);
-        setDecisionPendingId(null);
-      }
-    };
-
-    const handleRejectSubmit = async (e) => {
-      e.preventDefault();
-      if (!rejectionReason.trim()) {
-        setErrorMsg('Rejection reason is mandatory.');
-        return;
-      }
-      setErrorMsg('');
-      setSuccessMsg('');
-      setSubmittingDecision(true);
-      try {
-        await onDecideRescheduleRequest(rejectingRequestId, 'Rejected', rejectionReason.trim());
-        setSuccessMsg('Reschedule request rejected successfully.');
-        setRejectingRequestId(null);
-        setRejectionReason('');
-        await loadRequests();
-        setTimeout(() => setSuccessMsg(''), 4000);
-      } catch (err) {
-        setErrorMsg(err.message || 'Failed to reject request.');
-      } finally {
-        setSubmittingDecision(false);
-      }
-    };
-
-    const pendingRequests = rescheduleRequests.filter(req => req.status === 'Pending');
-    const pastRequests = rescheduleRequests.filter(req => req.status !== 'Pending');
+  useEffect(() => {
+    loadRequests();
+  }, []);
+  const pendingRequests = rescheduleRequests.filter(req => req.status === 'Pending');
+  const pastRequests = rescheduleRequests.filter(req => req.status !== 'Pending');
 
     return (
       <div className="pt-24 pb-16 px-8 max-w-[1400px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500 text-[#e4e1e9]">
@@ -252,6 +240,8 @@ export default function ExitInterviewsList() {
           <div className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-4 py-3 rounded-lg text-sm mb-6 flex items-center gap-2">
             <Icon className="text-rose-400">error</Icon>
             <span>{error}</span>
+          </div>
+        )}
             {/* Messages */}
             {successMsg && (
               <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm flex items-center gap-2">

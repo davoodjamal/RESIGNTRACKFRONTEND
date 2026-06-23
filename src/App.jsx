@@ -21,17 +21,12 @@ import {
   createAsset,
   updateAssetStatus,
   assignAsset,
-  returnAsset
+  returnAsset,
   fetchNoticePeriod,
   withdrawResignation,
   fetchChecklistTasks,
   updateChecklistTaskStatus,
-  fetchAssets,
   fetchAssetAuditTrail,
-  createAsset as apiCreateAsset,
-  updateAssetStatus as apiUpdateAssetStatusModel,
-  assignAsset as apiAssignAsset,
-  returnAsset as apiReturnAsset,
   createRescheduleRequest,
   fetchRescheduleRequests,
   decideRescheduleRequest,
@@ -65,168 +60,133 @@ function App() {
 
   // Real assets state synced with database
   const [assets, setAssets] = useState([]);
-
-  const assetAuditTrail = auditLogs
-    .filter(log => log.actionType && log.actionType.startsWith('Asset'))
-    .map(log => ({
-      id: log.id,
-      action: log.message,
-      time: log.time || new Date(log.timestamp).toLocaleTimeString()
-    }));
+  const [assetAuditTrail, setAssetAuditTrail] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   const handleAssignAsset = async (assetId, employee) => {
     try {
       const email = employee?.email || employee;
       await assignAsset(assetId, email);
-      const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
+      const [assetsData, auditData] = await Promise.all([
+        fetchAssets(),
+        fetchAssetAuditTrail()
+      ]);
       setAssets(assetsData);
-      setAuditLogs(logsData);
-      // Assets state loaded from Django backend
-      const [assets, setAssets] = useState([]);
+      setAssetAuditTrail(auditData);
+    } catch (err) {
+      alert(err.message || 'Failed to assign asset');
+    }
+  };
 
-      const [assetAuditTrail, setAssetAuditTrail] = useState([]);
+  const handleReturnAsset = async (assetId, returnDetails = {}) => {
+    try {
+      await returnAsset(assetId, returnDetails);
+      const [assetsData, auditData] = await Promise.all([
+        fetchAssets(),
+        fetchAssetAuditTrail()
+      ]);
+      setAssets(assetsData);
+      setAssetAuditTrail(auditData);
+    } catch (err) {
+      alert(err.message || 'Failed to return asset');
+    }
+  };
 
-      // Notifications state
-      const [notifications, setNotifications] = useState([]);
+  const handleUpdateAssetStatus = async (assetId, status) => {
+    try {
+      await updateAssetStatus(assetId, status);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+    } catch (err) {
+      alert(err.message || 'Failed to update asset status');
+    }
+  };
 
-      const handleAssignAsset = async (assetId, employee) => {
-        try {
-          await apiAssignAsset(assetId, employee);
-          const assetsData = await fetchAssets();
-          setAssets(assetsData);
-          const auditData = await fetchAssetAuditTrail();
-          setAssetAuditTrail(auditData);
-        } catch (err) {
-          alert(err.message || 'Failed to assign asset');
+  const handleCreateAsset = async (newAsset) => {
+    try {
+      await createAsset(newAsset);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+    } catch (err) {
+      alert(err.message || 'Failed to create asset');
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadData = async () => {
+      try {
+        const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData, notificationsData] = await Promise.all([
+          fetchSettings(),
+          fetchResignations(),
+          fetchAuditLogs(),
+          fetchProfile().catch(() => null),
+          user.role === 'employee' ? fetchNoticePeriod().catch(() => null) : Promise.resolve(null),
+          user.role === 'employee' ? fetchChecklistTasks().catch(() => []) : Promise.resolve([]),
+          fetchNotifications().catch(() => []),
+        ]);
+        setSystemSettings(settingsData);
+        setResignations(resignationsData);
+        setAuditLogs(logsData);
+
+        if (profileData) {
+          const updatedUser = {
+            ...user,
+            email: profileData.email || user.email,
+            username: profileData.username || user.username,
+            role: profileData.role || user.role,
+            fullName: profileData.fullName || profileData.full_name,
+            phone: profileData.phone,
+            dob: profileData.dob,
+            designation: profileData.designation,
+            address: profileData.address,
+          };
+
+          const hasChanged =
+            user.email !== updatedUser.email ||
+            user.username !== updatedUser.username ||
+            user.role !== updatedUser.role ||
+            user.fullName !== updatedUser.fullName ||
+            user.phone !== updatedUser.phone ||
+            user.dob !== updatedUser.dob ||
+            user.designation !== updatedUser.designation ||
+            user.address !== updatedUser.address;
+
+          if (hasChanged) {
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
         }
-      };
 
-      const handleReturnAsset = async (assetId, returnDetails = {}) => {
-        try {
-          await returnAsset(assetId, returnDetails);
-          const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
+        if (user.role === 'admin' || user.role === 'hr') {
+          const [usersData, assetsData, auditData] = await Promise.all([
+            fetchUsers(),
+            fetchAssets().catch(() => []),
+            fetchAssetAuditTrail().catch(() => [])
+          ]);
+          setUsers(usersData);
           setAssets(assetsData);
-          setAuditLogs(logsData);
-          const handleReturnAsset = async (assetId, returnDetails) => {
-            try {
-              await apiReturnAsset(assetId, returnDetails);
-              const assetsData = await fetchAssets();
-              setAssets(assetsData);
-              const auditData = await fetchAssetAuditTrail();
-              setAssetAuditTrail(auditData);
-            } catch (err) {
-              alert(err.message || 'Failed to return asset');
-            }
-          };
+          setAssetAuditTrail(auditData);
+          setNotifications(notificationsData);
+        } else if (user.role === 'employee') {
+          const assetsData = await fetchAssets().catch(() => []);
+          setAssets(assetsData);
+          setNotifications(notificationsData);
+          if (noticePeriodInfo) {
+            setNoticePeriodData(noticePeriodInfo);
+          }
+          if (checklistData) {
+            setChecklistTasks(checklistData);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load data from backend:', err);
+      }
+    };
 
-          const handleUpdateAssetStatus = async (assetId, status) => {
-            try {
-              await updateAssetStatus(assetId, status);
-              const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
-              setAssets(assetsData);
-              setAuditLogs(logsData);
-              await apiUpdateAssetStatusModel(assetId, status);
-              const assetsData = await fetchAssets();
-              setAssets(assetsData);
-            } catch (err) {
-              alert(err.message || 'Failed to update asset status');
-            }
-          };
-
-          const handleCreateAsset = async (newAsset) => {
-            try {
-              await createAsset(newAsset);
-              const [assetsData, logsData] = await Promise.all([fetchAssets(), fetchAuditLogs()]);
-              setAssets(assetsData);
-              setAuditLogs(logsData);
-              await apiCreateAsset(newAsset);
-              const assetsData = await fetchAssets();
-              setAssets(assetsData);
-            } catch (err) {
-              alert(err.message || 'Failed to create asset');
-            }
-          };
-
-
-          // Load data when user state changes
-          useEffect(() => {
-            if (!user) return;
-
-            const loadData = async () => {
-              try {
-                const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData, notificationsData] = await Promise.all([
-                  fetchSettings(),
-                  fetchResignations(),
-                  fetchAuditLogs(),
-                  fetchProfile().catch(() => null),
-                  user.role === 'employee' ? fetchNoticePeriod().catch(() => null) : Promise.resolve(null),
-                  user.role === 'employee' ? fetchChecklistTasks().catch(() => []) : Promise.resolve([]),
-                  fetchNotifications().catch(() => []),
-                ]);
-                setSystemSettings(settingsData);
-                setResignations(resignationsData);
-                setAuditLogs(logsData);
-
-                if (profileData?.role === 'hr' || profileData?.role === 'admin' || user.role === 'hr' || user.role === 'admin') {
-                  const assetsData = await fetchAssets();
-                  setAssets(assetsData);
-                  setNotifications(notificationsData);
-                  if (noticePeriodInfo) {
-                    setNoticePeriodData(noticePeriodInfo);
-                  }
-                  if (checklistData) {
-                    setChecklistTasks(checklistData);
-                  }
-
-                  if (profileData) {
-                    const updatedUser = {
-                      ...user,
-                      email: profileData.email || user.email,
-                      username: profileData.username || user.username,
-                      role: profileData.role || user.role,
-                      fullName: profileData.fullName || profileData.full_name,
-                      phone: profileData.phone,
-                      dob: profileData.dob,
-                      designation: profileData.designation,
-                      address: profileData.address,
-                    };
-
-                    const hasChanged =
-                      user.email !== updatedUser.email ||
-                      user.username !== updatedUser.username ||
-                      user.role !== updatedUser.role ||
-                      user.fullName !== updatedUser.fullName ||
-                      user.phone !== updatedUser.phone ||
-                      user.dob !== updatedUser.dob ||
-                      user.designation !== updatedUser.designation ||
-                      user.address !== updatedUser.address;
-
-                    if (hasChanged) {
-                      setUser(updatedUser);
-                      localStorage.setItem('user', JSON.stringify(updatedUser));
-                    }
-                  }
-
-                  if (user.role === 'admin' || user.role === 'hr') {
-                    const [usersData, assetsData, auditData] = await Promise.all([
-                      fetchUsers(),
-                      fetchAssets().catch(() => []),
-                      fetchAssetAuditTrail().catch(() => [])
-                    ]);
-                    setUsers(usersData);
-                    setAssets(assetsData);
-                    setAssetAuditTrail(auditData);
-                  } else if (user.role === 'employee') {
-                    const assetsData = await fetchAssets().catch(() => []);
-                    setAssets(assetsData);
-                  }
-                } catch (err) {
-                  console.error('Failed to load data from backend:', err);
-                }
-              };
-
-              loadData();
-            }, [user]);
+    loadData();
+  }, [user]);
 
           // Add a log to the audit stream
           const addAuditLog = async (message) => {
