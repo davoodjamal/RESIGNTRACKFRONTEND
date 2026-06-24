@@ -294,9 +294,10 @@ export default function ReportsAnalytics() {
 
   const categoryColors = {
     'Career Growth': '#00dbe9',
-    'Compensation': '#f43f5e',
-    'Work-Life Balance': '#10b981',
-    'Management': '#eab308',
+    'Better Opportunity': '#f43f5e',
+    'Higher Education': '#10b981',
+    'Health & Medical': '#eab308',
+    'Personal Reasons': '#a855f7',
     'Other': '#8b5cf6'
   };
 

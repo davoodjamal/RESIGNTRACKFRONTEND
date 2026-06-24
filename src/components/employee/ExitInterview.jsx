@@ -67,13 +67,15 @@ export default function ExitInterview({ user, resignation, onSave, onSubmit }) {
     enjoyText: '',
     improveText: '',
     recommend: '',
+    otherReasonText: '',
     rejoin: ''
   });
 
   useEffect(() => {
-    if (resignation && resignation.exitFeedback) {
+    if (resignation) {
       setFormData(prev => ({
         ...prev,
+        reason: resignation.exitFeedback?.reason || resignation.reason || '',
         ...resignation.exitFeedback
       }));
     }
@@ -154,14 +156,27 @@ export default function ExitInterview({ user, resignation, onSave, onSubmit }) {
                   className="w-full p-4 border border-[#3b494b] rounded-xl focus:ring-2 focus:ring-[#00dbe9] focus:border-[#00dbe9] text-sm font-medium outline-none bg-[#2a292f] appearance-none"
                >
                   <option disabled value="">Select a reason</option>
+                  <option>Career Growth</option>
                   <option>Better Opportunity</option>
                   <option>Higher Education</option>
-                  <option>Relocation</option>
+                  <option>Health & Medical</option>
                   <option>Personal Reasons</option>
-                  <option>Career Change</option>
-                  <option>Work-Life Balance</option>
-                  <option>Compensation</option>
+                  <option>Other</option>
                </select>
+               {formData.reason === 'Other' && (
+                  <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                     <label htmlFor="other-reason" className="block text-sm font-bold text-[#b9cacb] mb-2">Please describe the reason *</label>
+                     <textarea
+                        id="other-reason"
+                        value={formData.otherReasonText || ''}
+                        onChange={(e) => handleChange('otherReasonText', e.target.value)}
+                        className="w-full p-4 border border-[#3b494b] rounded-xl focus:ring-2 focus:ring-[#00dbe9] focus:border-[#00dbe9] text-sm font-medium outline-none bg-[#2a292f] resize-none"
+                        placeholder="Please share more details about your decision..."
+                        rows="3"
+                        required
+                     />
+                  </div>
+               )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">

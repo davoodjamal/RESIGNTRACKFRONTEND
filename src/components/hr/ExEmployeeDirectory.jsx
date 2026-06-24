@@ -1,6 +1,58 @@
+import { useState, useEffect } from 'react';
 import Icon from '../Icon';
+import { fetchExEmployees } from '../../api';
 
 export default function ExEmployeeDirectory() {
+  const [employees, setEmployees] = useState([]);
+  const [insights, setInsights] = useState({
+    totalRecords: 0,
+    rehirePct: 0,
+    avgTenure: 0,
+    primaryReason: 'N/A'
+  });
+  const [loading, setLoading] = useState(true);
+  const [departureFilter, setDepartureFilter] = useState('All Time');
+  const [reasonFilter, setReasonFilter] = useState('All Reasons');
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetchExEmployees();
+        if (res) {
+          setEmployees(res.employees || []);
+          if (res.insights) {
+            setInsights(res.insights);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load ex-employees data', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+    const interval = setInterval(loadData, 5000); // Polling every 5 seconds for real-time updates
+    return () => clearInterval(interval);
+  }, []);
+
+  const filteredEmployees = employees.filter(emp => {
+    // Reason filter
+    if (reasonFilter !== 'All Reasons') {
+      const exitLower = (emp.exitReason || '').toLowerCase();
+      if (reasonFilter === 'Voluntary') {
+        const involuntaryReasons = ['layoff', 'fired', 'termination', 'involuntary', 'performance'];
+        if (involuntaryReasons.some(r => exitLower.includes(r))) return false;
+      } else if (reasonFilter === 'Involuntary') {
+        const involuntaryReasons = ['layoff', 'fired', 'termination', 'involuntary', 'performance'];
+        if (!involuntaryReasons.some(r => exitLower.includes(r))) return false;
+      } else {
+        if (!exitLower.includes(reasonFilter.toLowerCase())) return false;
+      }
+    }
+    return true;
+  });
+
   return (
     <div className="p-6 md:p-8 animate-in fade-in slide-in-from-bottom-8 duration-500">
       <div className="max-w-[1200px] mx-auto">
@@ -11,7 +63,11 @@ export default function ExEmployeeDirectory() {
               <label className="text-[10px] font-bold text-[#b9cacb] uppercase tracking-wider px-2">
                 Departure Date
               </label>
-              <select className="bg-[#131318] border border-[#3b494b] rounded-lg px-4 h-[40px] text-sm focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none min-w-[180px]">
+              <select 
+                value={departureFilter}
+                onChange={(e) => setDepartureFilter(e.target.value)}
+                className="bg-[#131318] border border-[#3b494b] rounded-lg px-4 h-[40px] text-sm focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none min-w-[180px]"
+              >
                 <option>All Time</option>
                 <option>Last 30 Days</option>
                 <option>Last 6 Months</option>
@@ -22,7 +78,11 @@ export default function ExEmployeeDirectory() {
               <label className="text-[10px] font-bold text-[#b9cacb] uppercase tracking-wider px-2">
                 Exit Reason
               </label>
-              <select className="bg-[#131318] border border-[#3b494b] rounded-lg px-4 h-[40px] text-sm focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none min-w-[180px]">
+              <select 
+                value={reasonFilter}
+                onChange={(e) => setReasonFilter(e.target.value)}
+                className="bg-[#131318] border border-[#3b494b] rounded-lg px-4 h-[40px] text-sm focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none min-w-[180px]"
+              >
                 <option>All Reasons</option>
                 <option>Voluntary</option>
                 <option>Involuntary</option>
@@ -44,16 +104,16 @@ export default function ExEmployeeDirectory() {
             <div>
               <h3 className="text-xl font-semibold text-[#00dbe9] mb-1">Directory Insights</h3>
               <p className="text-[#b9cacb] text-sm">
-                You are viewing 1,248 completed offboarding profiles from the last 2 fiscal years.
+                You are viewing {insights.totalRecords} completed offboarding profiles.
               </p>
             </div>
             <div className="flex gap-6 shrink-0">
               <div className="text-center">
-                <span className="block text-3xl font-bold text-[#00dbe9]">82%</span>
+                <span className="block text-3xl font-bold text-[#00dbe9]">{insights.rehirePct}%</span>
                 <span className="text-[10px] uppercase font-bold text-[#b9cacb]">Re-hire Eligible</span>
               </div>
               <div className="text-center">
-                <span className="block text-3xl font-bold text-[#00dbe9]">14.2</span>
+                <span className="block text-3xl font-bold text-[#00dbe9]">{insights.avgTenure}</span>
                 <span className="text-[10px] uppercase font-bold text-[#b9cacb]">Avg Tenure (mo)</span>
               </div>
             </div>
@@ -62,7 +122,7 @@ export default function ExEmployeeDirectory() {
             <span className="text-[10px] uppercase font-bold text-[#00dbe9] mb-2">
               Primary Exit Reason
             </span>
-            <h4 className="text-xl font-semibold text-[#00dbe9]">Career Growth</h4>
+            <h4 className="text-xl font-semibold text-[#00dbe9]">{insights.primaryReason}</h4>
             <div className="w-full bg-[#3b494b] h-1.5 rounded-full mt-3 overflow-hidden">
               <div className="bg-[#00dbe9] w-[65%] h-full"></div>
             </div>
@@ -71,123 +131,64 @@ export default function ExEmployeeDirectory() {
 
         {/* Employee Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Card 1 */}
-          <div className="bg-[#1f1f24] rounded-xl shadow-sm overflow-hidden border border-transparent hover:border-[#00dbe9]/30 hover:shadow-md transition-all duration-300 group flex flex-col">
-            <div className="p-6 flex-1">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <h3 className="text-[18px] font-bold text-[#e4e1e9]">Helena Vane</h3>
-                    <p className="text-sm text-[#b9cacb]">Senior UX Designer</p>
+          {loading ? (
+            <div className="col-span-full flex items-center justify-center py-12">
+              <Icon className="text-4xl text-[#00dbe9] animate-spin">sync</Icon>
+            </div>
+          ) : filteredEmployees.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-[#b9cacb]">
+              No resigned employee records found.
+            </div>
+          ) : (
+            filteredEmployees.map((emp) => (
+              <div key={emp.id} className="bg-[#1f1f24] rounded-xl shadow-sm overflow-hidden border border-transparent hover:border-[#00dbe9]/30 hover:shadow-md transition-all duration-300 group flex flex-col">
+                <div className="p-6 flex-1">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <h3 className="text-[18px] font-bold text-[#e4e1e9]">{emp.name}</h3>
+                        <p className="text-sm text-[#b9cacb]">{emp.role}</p>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 text-[10px] uppercase font-bold rounded-full ${
+                      emp.rehireEligible 
+                        ? 'bg-[#00dbe9] text-[#131318]' 
+                        : 'bg-[#3b494b] text-[#b9cacb]'
+                    }`}>
+                      {emp.rehireEligible ? 'Re-hire Eligible' : 'Offboarded'}
+                    </span>
+                  </div>
+                  <div className="space-y-3 py-4 border-y border-[#3b494b]/30">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-[#b9cacb]">Department</span>
+                      <span className="text-[#e4e1e9] font-medium">{emp.department}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-[#b9cacb]">Tenure</span>
+                      <span className="text-[#e4e1e9] font-medium">{emp.tenure}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-[#b9cacb]">Departure Date</span>
+                      <span className="text-[#e4e1e9] font-medium">{emp.departureDate}</span>
+                    </div>
                   </div>
                 </div>
-                <span className="px-3 py-1 bg-[#00dbe9] text-[#131318] text-[10px] uppercase font-bold rounded-full">
-                  Re-hire Eligible
-                </span>
-              </div>
-              <div className="space-y-3 py-4 border-y border-[#3b494b]/30">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Department</span>
-                  <span className="text-[#e4e1e9] font-medium">Product & Design</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Tenure</span>
-                  <span className="text-[#e4e1e9] font-medium">4 Years, 6 Months</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Departure Date</span>
-                  <span className="text-[#e4e1e9] font-medium">Oct 12, 2023</span>
+                <div className="bg-[#2a292f] px-6 py-4 flex justify-end">
+                  <button className="text-[#00dbe9] text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
+                    View Full Profile
+                    <Icon className="text-[18px]">arrow_forward</Icon>
+                  </button>
                 </div>
               </div>
-            </div>
-            <div className="bg-[#2a292f] px-6 py-4 flex justify-end">
-              <button className="text-[#00dbe9] text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
-                View Full Profile
-                <Icon className="text-[18px]">arrow_forward</Icon>
-              </button>
-            </div>
-          </div>
-
-          {/* Card 2 */}
-          <div className="bg-[#1f1f24] rounded-xl shadow-sm overflow-hidden border border-transparent hover:border-[#00dbe9]/30 hover:shadow-md transition-all duration-300 group flex flex-col">
-            <div className="p-6 flex-1">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <h3 className="text-[18px] font-bold text-[#e4e1e9]">Marcus Thorne</h3>
-                    <p className="text-sm text-[#b9cacb]">DevOps Engineer</p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 bg-[#3b494b] text-[#b9cacb] text-[10px] uppercase font-bold rounded-full">
-                  Offboarded
-                </span>
-              </div>
-              <div className="space-y-3 py-4 border-y border-[#3b494b]/30">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Department</span>
-                  <span className="text-[#e4e1e9] font-medium">Engineering</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Tenure</span>
-                  <span className="text-[#e4e1e9] font-medium">2 Years, 1 Month</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Departure Date</span>
-                  <span className="text-[#e4e1e9] font-medium">Nov 05, 2023</span>
-                </div>
-              </div>
-            </div>
-            <div className="bg-[#2a292f] px-6 py-4 flex justify-end">
-              <button className="text-[#00dbe9] text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
-                View Full Profile
-                <Icon className="text-[18px]">arrow_forward</Icon>
-              </button>
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="bg-[#1f1f24] rounded-xl shadow-sm overflow-hidden border border-transparent hover:border-[#00dbe9]/30 hover:shadow-md transition-all duration-300 group flex flex-col">
-            <div className="p-6 flex-1">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <h3 className="text-[18px] font-bold text-[#e4e1e9]">Elena Jovic</h3>
-                    <p className="text-sm text-[#b9cacb]">Regional Sales Manager</p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 bg-[#00dbe9] text-[#131318] text-[10px] uppercase font-bold rounded-full">
-                  Re-hire Eligible
-                </span>
-              </div>
-              <div className="space-y-3 py-4 border-y border-[#3b494b]/30">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Department</span>
-                  <span className="text-[#e4e1e9] font-medium">Sales & Marketing</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Tenure</span>
-                  <span className="text-[#e4e1e9] font-medium">8 Years, 4 Months</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#b9cacb]">Departure Date</span>
-                  <span className="text-[#e4e1e9] font-medium">Dec 20, 2023</span>
-                </div>
-              </div>
-            </div>
-            <div className="bg-[#2a292f] px-6 py-4 flex justify-end">
-              <button className="text-[#00dbe9] text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
-                View Full Profile
-                <Icon className="text-[18px]">arrow_forward</Icon>
-              </button>
-            </div>
-          </div>
+            ))
+          )}
         </div>
 
         {/* Pagination */}
         <div className="mt-8 flex flex-col md:flex-row items-center justify-between border-t border-[#3b494b] pt-6 gap-4">
           <p className="text-sm text-[#b9cacb]">
-            Showing <span className="font-bold text-[#e4e1e9]">1 - 6</span> of{' '}
-            <span className="font-bold text-[#e4e1e9]">1,248</span> records
+            Showing <span className="font-bold text-[#e4e1e9]">1 - {filteredEmployees.length}</span> of{' '}
+            <span className="font-bold text-[#e4e1e9]">{filteredEmployees.length}</span> records
           </p>
           <div className="flex items-center gap-2">
             <button className="w-10 h-10 border border-[#3b494b] rounded-lg hover:bg-[#eeedf5] flex items-center justify-center transition-all disabled:opacity-30" disabled>
@@ -195,26 +196,12 @@ export default function ExEmployeeDirectory() {
             </button>
             <div className="flex gap-1">
               <button className="w-10 h-10 bg-[#00dbe9] text-white rounded-lg text-xs shadow-sm font-medium">1</button>
-              <button className="w-10 h-10 hover:bg-[#eeedf5] rounded-lg text-xs transition-all font-medium">2</button>
-              <button className="w-10 h-10 hover:bg-[#eeedf5] rounded-lg text-xs transition-all font-medium">3</button>
-              <span className="w-10 h-10 flex items-center justify-center text-[#b9cacb]">...</span>
-              <button className="w-10 h-10 hover:bg-[#eeedf5] rounded-lg text-xs transition-all font-medium">208</button>
             </div>
-            <button className="w-10 h-10 border border-[#3b494b] rounded-lg hover:bg-[#eeedf5] flex items-center justify-center transition-all">
+            <button className="w-10 h-10 border border-[#3b494b] rounded-lg hover:bg-[#eeedf5] flex items-center justify-center transition-all disabled:opacity-30" disabled>
               <Icon>chevron_right</Icon>
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Side Quick Action */}
-      <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-        <button className="w-14 h-14 bg-[#00dbe9] text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all group relative">
-          <Icon>add</Icon>
-          <span className="absolute right-full mr-4 bg-[#e4e1e9] text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-            Archive New Record
-          </span>
-        </button>
       </div>
     </div>
   );

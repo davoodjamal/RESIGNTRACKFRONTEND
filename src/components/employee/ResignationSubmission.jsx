@@ -20,6 +20,7 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
   const [additionalFeedback, setAdditionalFeedback] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hrRemarks, setHrRemarks] = useState('');
 
   // Requirement States
   const [draftId, setDraftId] = useState(null);
@@ -39,8 +40,11 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
           if (draft.reason_for_leaving) setReason(draft.reason_for_leaving);
           if (draft.elaboration) setComments(draft.elaboration);
           if (draft.immediate_release !== undefined) setIsEmergencyRequested(draft.immediate_release);
+          if (draft.emergency_reason) setEmergencyReason(draft.emergency_reason);
+          if (draft.emergency_remarks) setEmergencyRemarks(draft.emergency_remarks);
           if (draft.last_working_day) setRelievingDate(draft.last_working_day);
           if (draft.additional_feedback) setAdditionalFeedback(draft.additional_feedback);
+          if (draft.hr_remarks) setHrRemarks(draft.hr_remarks);
         }
       } catch (err) {
         console.log('No active draft found or error loading draft:', err.message);
@@ -87,6 +91,8 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
         reason_for_leaving: reason,
         elaboration: comments,
         immediate_release: isEmergencyRequested,
+        emergency_reason: emergencyReason,
+        emergency_remarks: emergencyRemarks,
         last_working_day: relievingDate || null,
         additional_feedback: additionalFeedback,
       };
@@ -120,10 +126,14 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
     setSubmissionStatus('submitting');
     try {
       const payload = {
-        employee_id: String(user.id || user.email || ''),
-        reason: reason,
+        id: draftId,
+        reason_for_leaving: reason,
         last_working_day: relievingDate,
-        comments: comments,
+        elaboration: comments,
+        immediate_release: isEmergencyRequested,
+        emergency_reason: emergencyReason,
+        emergency_remarks: emergencyRemarks,
+        additional_feedback: additionalFeedback,
       };
       const result = await submitResignation(payload);
       setSubmissionStatus('success');
@@ -138,7 +148,7 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
           submissionDate: new Date().toISOString().split('T')[0],
           relievingDate: relievingDate,
           comments: comments,
-          status: 'Pending',
+          status: 'Awaiting Exit Interview',
           exitFeedback: {
             cultureRating: 0,
             compensationRating: 0,
@@ -177,6 +187,15 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
 
       <form onSubmit={handleSubmit} className="bg-[#1f1f24] rounded-2xl shadow-sm border border-[#3b494b] overflow-hidden">
          <div className="p-8 md:p-10 space-y-10">
+            {hrRemarks && (
+               <div className="p-5 rounded-2xl bg-[#ffe082]/10 border border-[#ffe082]/20 text-[#ffe082] flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <Icon className="text-[#ffe082] text-[28px] mt-0.5">info</Icon>
+                  <div>
+                     <h4 className="font-extrabold text-base tracking-wide uppercase">HR Clarification Required</h4>
+                     <p className="text-sm text-[#b9cacb] mt-1 font-medium leading-relaxed">{hrRemarks}</p>
+                  </div>
+               </div>
+            )}
             <section className="space-y-6">
                <div className="space-y-2">
                   <label className="text-xs font-bold text-[#00dbe9] uppercase tracking-wider">Reason for Leaving *</label>

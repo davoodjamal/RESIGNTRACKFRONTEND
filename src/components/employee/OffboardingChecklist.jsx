@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Icon from '../Icon';
+import { fetchMeetings } from '../../api';
 
 export default function OffboardingChecklist({ resignation, onStartInterview, noticePeriodData, checklistTasks, onUpdateTaskStatus, onRescheduleRequest }) {
   const noticePeriod = noticePeriodData ? noticePeriodData.notice_period : 30;
@@ -12,6 +13,7 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [apiError, setApiError] = useState('');
+  const [meetings, setMeetings] = useState([]);
 
   // Clear states when modal closes/opens
   useEffect(() => {
@@ -93,6 +95,18 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
   const tasks = checklistTasks || [];
   const completedTasksCount = tasks.filter(t => t.status === 'Completed').length;
   const totalTasksCount = tasks.length;
+  const exitInterviewTask = tasks.find(t => t.title.toLowerCase().includes('exit interview'));
+  const isExitInterviewCompleted = exitInterviewTask?.status === 'Completed' || resignation?.exitFeedback?.roleRating > 0;
+
+  useEffect(() => {
+    if (isSubmitted) {
+      fetchMeetings()
+        .then(setMeetings)
+        .catch(err => console.error("Failed to load meetings:", err));
+    }
+  }, [isSubmitted]);
+
+  const latestMeeting = meetings && meetings.length > 0 ? meetings[0] : null;
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
@@ -185,30 +199,41 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
          </div>
 
          {/* Exit Interview Card */}
-         <div className="lg:col-span-7 bg-[#00dbe9] text-white rounded-2xl p-8 relative overflow-hidden group shadow-md border border-[#00dbe9]">
-            <div className="relative z-10 flex flex-col h-full justify-between">
-               <div>
-                  <h3 className="text-2xl font-bold mb-3 tracking-tight">Exit Interview</h3>
-                  <p className="text-sm opacity-90 max-w-md mb-8 leading-relaxed">Your feedback helps us improve. Please complete the confidential exit survey before your final day.</p>
+         {!isExitInterviewCompleted && (
+            <div className="lg:col-span-7 bg-[#00dbe9] text-white rounded-2xl p-8 relative overflow-hidden group shadow-md border border-[#00dbe9]">
+               <div className="relative z-10 flex flex-col h-full justify-between">
+                  <div>
+                     <h3 className="text-2xl font-bold mb-3 tracking-tight">Exit Interview</h3>
+                     <p className="text-sm opacity-90 max-w-md mb-8 leading-relaxed">Your feedback helps us improve. Please complete the confidential exit survey before your final day.</p>
+                  </div>
+                  <button 
+                     onClick={onStartInterview}
+                     className="inline-flex items-center justify-center bg-[#1f1f24] text-[#00dbe9] px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#2a292f] active:scale-95 transition-all w-fit group-hover:px-8 shadow-sm"
+                  >
+                     Start Form <Icon className="ml-2 text-[20px]">arrow_forward</Icon>
+                  </button>
                </div>
-               <button 
-                  onClick={onStartInterview}
-                  className="inline-flex items-center justify-center bg-[#1f1f24] text-[#00dbe9] px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#2a292f] active:scale-95 transition-all w-fit group-hover:px-8 shadow-sm"
-               >
-                  Start Form <Icon className="ml-2 text-[20px]">arrow_forward</Icon>
-               </button>
+               {/* Abstract Background Shape */}
+               <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-[#1f1f24] opacity-10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
             </div>
-            {/* Abstract Background Shape */}
-            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-[#1f1f24] opacity-10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
-         </div>
+         )}
 
           {/* Resources Card */}
-          <div className="lg:col-span-5 bg-[#1f1f24] rounded-2xl p-8 flex flex-col justify-between shadow-sm border border-[#3b494b]">
+          <div className={`${isExitInterviewCompleted ? 'lg:col-span-12' : 'lg:col-span-5'} bg-[#1f1f24] rounded-2xl p-8 flex flex-col justify-between shadow-sm border border-[#3b494b]`}>
              <div>
                 <h3 className="text-xl font-bold text-[#00dbe9] mb-4">HR Consultation</h3>
                 <p className="text-sm font-medium text-[#b9cacb] mb-8 leading-relaxed">Join your scheduled exit interview or discuss your transition details live with your HR manager.</p>
                 <div className="space-y-3">
-                   <button className="w-full flex items-center justify-center gap-3 p-3.5 bg-[#00dbe9] text-white rounded-xl hover:bg-[#00dbe9] active:scale-95 transition-all font-bold shadow-sm">
+                   <button 
+                      onClick={() => {
+                         if (latestMeeting && latestMeeting.jitsiUrl) {
+                            window.open(latestMeeting.jitsiUrl, '_blank');
+                         } else {
+                            alert("No exit consultation meeting has been scheduled yet.");
+                         }
+                      }}
+                      className="w-full flex items-center justify-center gap-3 p-3.5 bg-[#00dbe9] text-white rounded-xl hover:bg-[#00dbe9] active:scale-95 transition-all font-bold shadow-sm"
+                   >
                       <Icon className="text-[20px]">video_call</Icon>
                       <span className="text-sm">Join Video Meeting</span>
                    </button>
@@ -226,7 +251,7 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
              </div>
              <div className="mt-8 pt-6 border-t border-[#3b494b]">
                 <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">
-                   Scheduled for: <span className="text-[#00dbe9]">{resignation?.meeting_schedule || 'Today, 2:00 PM'}</span>
+                   Scheduled for: <span className="text-[#00dbe9]">{latestMeeting ? `${latestMeeting.date} at ${latestMeeting.timeSlot}` : (resignation?.meeting_schedule || 'Today, 2:00 PM')}</span>
                    {resignation?.meeting_status === 'Reschedule Requested' && (
                      <span className="block text-[10px] text-[#ffc107] mt-1 font-bold">
                        * Reschedule Request Pending Review

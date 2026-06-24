@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import Icon from '../Icon';
 
-export default function EmployeeDashboard({ user, resignation, onWithdraw, systemSettings, noticePeriodData, checklistTasks }) {
+export default function EmployeeDashboard({ user, resignation, onWithdraw, systemSettings, noticePeriodData, checklistTasks, onReapply }) {
    const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+   const exitInterviewTask = checklistTasks?.find(t => t.title.toLowerCase().includes('exit interview'));
+   const isExitInterviewCompleted = exitInterviewTask?.status === 'Completed' || resignation?.exitFeedback?.roleRating > 0;
+   const hrRemarks = resignation?.exitFeedback?.hr_remarks || resignation?.exit_feedback?.hr_remarks || '';
 
    const noticePeriod = noticePeriodData ? noticePeriodData.notice_period : (systemSettings?.noticePeriod || 30);
 
@@ -24,15 +27,21 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
    const progressPercentage = noticePeriodData && noticePeriodData.has_active_resignation
       ? noticePeriodData.progress_percentage
       : Math.max(0, Math.min(100, Math.round(((noticePeriod - daysLeft) / noticePeriod) * 100)));
-   const transitionProgress = resignation.status === 'Approved' ? 66 : resignation.status === 'Pending' ? 33 : 0;
+   const transitionProgress = resignation?.status === 'Approved' ? 66 : resignation?.status === 'Pending' ? 33 : 0;
 
-   const emergencyReleaseRequested = resignation.exitFeedback?.emergencyReleaseRequested || resignation.emergencyReleaseRequested;
+   const emergencyReleaseRequested =
+      resignation?.exitFeedback?.emergencyReleaseRequested ||
+      resignation?.exitFeedback?.immediate_release ||
+      resignation?.exitFeedback?.immediateRelease ||
+      resignation?.emergencyReleaseRequested ||
+      resignation?.immediate_release ||
+      resignation?.immediateRelease;
 
    const steps = [
-      { label: 'Submitted', date: resignation.submissionDate, status: 'completed', icon: 'check' },
-      { label: 'Under Review', date: 'In Progress', status: resignation.status === 'Pending' ? 'active' : 'completed', icon: resignation.status === 'Pending' ? 'pending' : 'check' },
-      { label: 'Approved', date: resignation.status === 'Approved' ? 'Approved' : 'Waiting', status: resignation.status === 'Approved' ? 'active' : 'upcoming', icon: 'thumb_up' },
-      { label: 'Last Day', date: resignation.relievingDate, status: 'upcoming', icon: 'event_available' }
+      { label: 'Submitted', date: resignation?.submissionDate, status: 'completed', icon: 'check' },
+      { label: 'Under Review', date: 'In Progress', status: resignation?.status === 'Pending' ? 'active' : 'completed', icon: resignation?.status === 'Pending' ? 'pending' : 'check' },
+      { label: 'Approved', date: resignation?.status === 'Approved' ? 'Approved' : 'Waiting', status: resignation?.status === 'Approved' ? 'active' : 'upcoming', icon: 'thumb_up' },
+      { label: 'Last Day', date: resignation?.relievingDate, status: 'upcoming', icon: 'event_available' }
    ];
 
    return (
@@ -57,7 +66,7 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      {emergencyReleaseRequested && (
                         <span className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#ffb4ab] text-[#5c1e1a] flex items-center gap-2">
                            <Icon className="text-[16px]">warning</Icon>
-                           Emergency Release
+                           EMERGENCY REQUESTED
                         </span>
                      )}
                      <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${resignation.status === 'Approved' ? 'bg-[#d8e2ff] text-[#001a42]' : resignation.status === 'Withdrawn' ? 'bg-[#76777d] text-white' : 'bg-[#ffe082] text-[#5a4300]'
@@ -66,6 +75,36 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      </span>
                   </div>
                </div>
+                {resignation.status === 'More Info Requested' && (
+                  <div className="mb-8 bg-[#ffe082]/10 rounded-2xl border border-[#ffe082]/20 p-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                     <div className="flex items-start gap-4">
+                        <div className="bg-[#ffe082]/25 p-3 rounded-xl border border-[#ffe082]/30 text-[#ffe082]">
+                           <Icon className="text-[28px]">info</Icon>
+                        </div>
+                        <div className="flex-grow space-y-2">
+                           <h4 className="text-lg font-black text-[#ffe082] tracking-wide uppercase">Reapply / Clarification Required</h4>
+                           <p className="text-sm text-[#b9cacb] leading-relaxed">
+                              HR has requested further clarification regarding your resignation request. Please review their remarks below, update your details, and reapply.
+                           </p>
+                           {hrRemarks && (
+                              <div className="bg-[#131318] p-4 rounded-xl border border-[#3b494b]/50 italic text-sm text-[#ffe082]/90 my-2 font-medium">
+                                 "{hrRemarks}"
+                              </div>
+                           )}
+                           <div className="pt-2">
+                              <button
+                                 type="button"
+                                 onClick={onReapply}
+                                 className="inline-flex items-center gap-2 px-6 py-3 bg-[#ffe082] text-[#08131f] font-bold rounded-xl hover:bg-[#ffd54f] transition-all shadow-md shadow-[#ffe082]/20 active:scale-95"
+                              >
+                                 <Icon className="text-[20px]">edit_note</Icon>
+                                 Edit & Reapply Resignation
+                              </button>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               )}
                {resignation.status !== 'Withdrawn' && (
                   <div className="mb-8 bg-[#172028] rounded-2xl border border-[#3b494b] p-5 shadow-sm">
                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -240,16 +279,18 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      Key Milestones
                   </h3>
                   <div className="space-y-8">
-                     <div className="flex items-start gap-5">
-                        <div className="bg-[#2a292f] p-4 rounded-xl border border-[#3b494b]">
-                           <Icon className="text-[#00dbe9] text-[28px]">diversity_3</Icon>
+                     {!isExitInterviewCompleted && (
+                        <div className="flex items-start gap-5">
+                           <div className="bg-[#2a292f] p-4 rounded-xl border border-[#3b494b]">
+                              <Icon className="text-[#00dbe9] text-[28px]">diversity_3</Icon>
+                           </div>
+                           <div className="pt-1">
+                              <p className="text-base font-bold text-[#e4e1e9]">Exit Interview</p>
+                              <p className="text-sm font-medium text-[#b9cacb] mt-1">Pending Schedule • 30 mins</p>
+                              <p className="text-sm text-[#00dbe9] mt-1 font-bold">with HR Department</p>
+                           </div>
                         </div>
-                        <div className="pt-1">
-                           <p className="text-base font-bold text-[#e4e1e9]">Exit Interview</p>
-                           <p className="text-sm font-medium text-[#b9cacb] mt-1">Pending Schedule • 30 mins</p>
-                           <p className="text-sm text-[#00dbe9] mt-1 font-bold">with HR Department</p>
-                        </div>
-                     </div>
+                     )}
                      <div className="flex items-start gap-5">
                         <div className="bg-[#ffb4ab] p-4 rounded-xl border border-[#ffb4ab]/30">
                            <Icon className="text-[#ffb4ab] text-[28px]">meeting_room</Icon>

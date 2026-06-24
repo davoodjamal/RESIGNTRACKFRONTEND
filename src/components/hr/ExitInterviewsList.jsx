@@ -9,7 +9,9 @@ import {
   createMeeting,
   updateMeeting,
   deleteMeeting,
-  fetchRescheduleRequests
+  fetchRescheduleRequests,
+  fetchEmployeeExitInterview,
+  fetchUsers
 } from '../../api';
 
 const defaultImages = {
@@ -70,21 +72,33 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [users, setUsers] = useState([]);
+  const [selectedExitInterviewDetail, setSelectedExitInterviewDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [tempHour, setTempHour] = useState('10');
+  const [tempMinute, setTempMinute] = useState('00');
+  const [tempAmPm, setTempAmPm] = useState('AM');
 
   const loadData = async () => {
     try {
-      const [interviewsData, latestData, analyticsData, meetingsData, employeesData] = await Promise.all([
+      const [interviewsData, latestData, analyticsData, meetingsData, employeesData, usersData] = await Promise.all([
         fetchExitInterviews({ search, reason: selectedReason, department: selectedDept }),
         fetchLatestExitInterview(),
         fetchExitAnalytics(),
         fetchMeetings(),
-        fetchEmployees()
+        fetchEmployees(),
+        fetchUsers({ role: 'employee' })
       ]);
       setExitInterviews(interviewsData || []);
       setLatestInterview(latestData && latestData.id ? latestData : null);
       setAnalytics(analyticsData || { totalExits: 0, reasons: [] });
       setMeetings(meetingsData || []);
       setEmployees(employeesData || []);
+      setUsers(usersData || []);
       setError(null);
     } catch (err) {
       setError(err.message || 'Failed to fetch exit interview data');
@@ -93,9 +107,45 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
     }
   };
 
+  const handleViewDetails = async (interview) => {
+    const targetUser = users.find(u => u.email === interview.email);
+    if (!targetUser) {
+      alert("Employee user record not found.");
+      return;
+    }
+    setLoadingDetail(true);
+    try {
+      const detail = await fetchEmployeeExitInterview(targetUser.id);
+      setSelectedExitInterviewDetail(detail);
+    } catch (err) {
+      alert(err.message || "Failed to fetch exit interview details");
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    setCurrentPage(1);
   }, [search, selectedReason, selectedDept]);
+
+  useEffect(() => {
+    if (editingId) return;
+    
+    if (!meetingEmployeeId) {
+      setMeetingJitsiUrl('https://meet.jit.si/');
+      return;
+    }
+    
+    const selectedEmp = employees.find(emp => emp && emp.id && emp.id.toString() === meetingEmployeeId.toString());
+    if (selectedEmp) {
+      const sanitizedName = selectedEmp.name ? selectedEmp.name.replace(/[^a-zA-Z0-9]/g, '') : 'Employee';
+      const uniqueHash = Math.random().toString(36).substring(2, 8);
+      const timestamp = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
+      const roomName = `ResignTrack-Exit-${sanitizedName}-${timestamp || uniqueHash}`;
+      setMeetingJitsiUrl(`https://meet.jit.si/${roomName}`);
+    }
+  }, [meetingEmployeeId, employees, editingId]);
 
   const handleMeetingSubmit = async (e) => {
     e.preventDefault();
@@ -103,6 +153,13 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
       setMeetingError('Please select an employee.');
       return;
     }
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (meetingDate < todayStr) {
+      setMeetingError('Cannot schedule meetings in the past.');
+      return;
+    }
+
     const trimmedUrl = meetingJitsiUrl.trim();
     if (!trimmedUrl.startsWith('https://meet.jit.si/') && !trimmedUrl.startsWith('https://')) {
       setMeetingError("Jitsi URL must start with 'https://meet.jit.si/' or 'https://'");
@@ -226,534 +283,767 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
   }, []);
   const pendingRequests = rescheduleRequests.filter(req => req.status === 'Pending');
   const pastRequests = rescheduleRequests.filter(req => req.status !== 'Pending');
+  const totalPages = Math.max(1, Math.ceil(exitInterviews.length / itemsPerPage));
+  const displayedInterviews = exitInterviews.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const startIndex = exitInterviews.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endIndex = Math.min(currentPage * itemsPerPage, exitInterviews.length);
 
-    return (
-      <div className="pt-24 pb-16 px-8 max-w-[1400px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500 text-[#e4e1e9]">
-        {/* Breadcrumbs */}
-        <nav className="flex text-xs font-medium text-[#b9cacb] gap-2 items-center mb-6">
-          <span className="hover:text-[#00dbe9] cursor-pointer transition-colors">Resignations</span>
-          <Icon className="text-[16px]">chevron_right</Icon>
-          <span className="text-[#00dbe9] font-semibold">Exit Interview</span>
-        </nav>
+  return (
+    <div className="pt-24 pb-16 px-8 max-w-[1400px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500 text-[#e4e1e9]">
+      {/* Breadcrumbs */}
+      <nav className="flex text-xs font-medium text-[#b9cacb] gap-2 items-center mb-6">
+        <span className="hover:text-[#00dbe9] cursor-pointer transition-colors">Resignations</span>
+        <Icon className="text-[16px]">chevron_right</Icon>
+        <span className="text-[#00dbe9] font-semibold">Exit Interview</span>
+      </nav>
 
-        {error && (
-          <div className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-4 py-3 rounded-lg text-sm mb-6 flex items-center gap-2">
-            <Icon className="text-rose-400">error</Icon>
-            <span>{error}</span>
+      {error && (
+        <div className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-4 py-3 rounded-lg text-sm mb-6 flex items-center gap-2">
+          <Icon className="text-rose-400">error</Icon>
+          <span>{error}</span>
+        </div>
+      )}
+      {/* Messages */}
+      {successMsg && (
+        <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm flex items-center gap-2">
+          <Icon>check_circle</Icon>
+          <span>{successMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="mb-6 p-4 rounded-xl bg-[#ffb4ab]/10 border border-[#ffb4ab]/20 text-[#ffb4ab] text-sm flex items-center gap-2">
+          <Icon>error</Icon>
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Pending Reschedule Requests Section */}
+      {pendingRequests.length > 0 && (
+        <div className="mb-8 bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 shadow-lg">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ffb4ab] animate-pulse"></span>
+            <h3 className="text-xl font-semibold text-[#00dbe9]">Pending Reschedule Requests</h3>
           </div>
-        )}
-            {/* Messages */}
-            {successMsg && (
-              <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm flex items-center gap-2">
-                <Icon>check_circle</Icon>
-                <span>{successMsg}</span>
-              </div>
-            )}
-            {errorMsg && (
-              <div className="mb-6 p-4 rounded-xl bg-[#ffb4ab]/10 border border-[#ffb4ab]/20 text-[#ffb4ab] text-sm flex items-center gap-2">
-                <Icon>error</Icon>
-                <span>{errorMsg}</span>
-              </div>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {pendingRequests.map((req) => {
+              const resignation = resignations?.find(r => r.id === req.resignation);
+              const employeeName = resignation ? resignation.name : 'Unknown Employee';
+              const employeeEmail = resignation ? resignation.email : 'Unknown Email';
+              const isProcessing = decisionPendingId === req.id || (submittingDecision && rejectingRequestId === req.id);
 
-            {/* Pending Reschedule Requests Section */}
-            {pendingRequests.length > 0 && (
-              <div className="mb-8 bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 shadow-lg">
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#ffb4ab] animate-pulse"></span>
-                  <h3 className="text-xl font-semibold text-[#00dbe9]">Pending Reschedule Requests</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {pendingRequests.map((req) => {
-                    const resignation = resignations?.find(r => r.id === req.resignation);
-                    const employeeName = resignation ? resignation.name : 'Unknown Employee';
-                    const employeeEmail = resignation ? resignation.email : 'Unknown Email';
-                    const isProcessing = decisionPendingId === req.id || (submittingDecision && rejectingRequestId === req.id);
-
-                    return (
-                      <div key={req.id} className="p-5 rounded-xl bg-[#2a292f] border border-[#3b494b] flex flex-col justify-between gap-4">
-                        <div>
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h4 className="font-bold text-[#e4e1e9]">{employeeName}</h4>
-                              <p className="text-xs text-[#b9cacb]">{employeeEmail}</p>
-                            </div>
-                            <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 text-[10px] font-bold rounded uppercase tracking-wider border border-yellow-500/20">
-                              Pending
-                            </span>
-                          </div>
-
-                          <div className="space-y-2 text-xs border-t border-[#3b494b]/30 pt-3">
-                            <div className="flex justify-between">
-                              <span className="text-[#b9cacb]">Current Schedule:</span>
-                              <span className="font-medium text-[#e4e1e9]">{req.current_schedule}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[#b9cacb]">Requested:</span>
-                              <span className="font-bold text-[#00dbe9]">{req.requested_date} at {req.requested_time.slice(0, 5)}</span>
-                            </div>
-                            <div className="bg-[#1f1f24] p-3 rounded-lg border border-[#3b494b]/50 mt-3">
-                              <span className="block text-[10px] font-bold uppercase text-[#b9cacb] mb-1">Reason for reschedule</span>
-                              <p className="text-xs text-[#e4e1e9] italic">"{req.reason}"</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-4 pt-2 border-t border-[#3b494b]/30">
-                          <button
-                            onClick={() => setRejectingRequestId(req.id)}
-                            disabled={isProcessing}
-                            className="flex-1 py-2 bg-transparent border border-[#ffb4ab] text-[#ffb4ab] rounded-lg text-xs font-semibold hover:bg-[#ffb4ab]/10 active:scale-95 disabled:opacity-50 transition-all"
-                          >
-                            Reject
-                          </button>
-                          <button
-                            onClick={() => handleApprove(req.id)}
-                            disabled={isProcessing}
-                            className="flex-1 py-2 bg-[#00dbe9] text-[#131318] rounded-lg text-xs font-bold hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all shadow-[0_0_10px_rgba(0,219,233,0.2)]"
-                          >
-                            {decisionPendingId === req.id ? 'Approving...' : 'Approve'}
-                          </button>
-                        </div>
+              return (
+                <div key={req.id} className="p-5 rounded-xl bg-[#2a292f] border border-[#3b494b] flex flex-col justify-between gap-4">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-bold text-[#e4e1e9]">{employeeName}</h4>
+                        <p className="text-xs text-[#b9cacb]">{employeeEmail}</p>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                      <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 text-[10px] font-bold rounded uppercase tracking-wider border border-yellow-500/20">
+                        Pending
+                      </span>
+                    </div>
 
-            <div className="grid grid-cols-12 gap-6">
-              {/* Left Column: Stats & List */}
-              <div className="col-span-12 lg:col-span-8 space-y-6">
-                {/* Analytics Dashboard */}
-                <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 flex flex-col md:flex-row gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-semibold text-[#00dbe9]">Primary Exit Reasons</h3>
-                      <div className="bg-[#131318] border border-[#3b494b] rounded px-3 py-1 text-[11px] font-bold text-[#b9cacb] uppercase tracking-wider">
-                        Real-time Database Stats
+                    <div className="space-y-2 text-xs border-t border-[#3b494b]/30 pt-3">
+                      <div className="flex justify-between">
+                        <span className="text-[#b9cacb]">Current Schedule:</span>
+                        <span className="font-medium text-[#e4e1e9]">{req.current_schedule}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#b9cacb]">Requested:</span>
+                        <span className="font-bold text-[#00dbe9]">{req.requested_date} at {req.requested_time.slice(0, 5)}</span>
+                      </div>
+                      <div className="bg-[#1f1f24] p-3 rounded-lg border border-[#3b494b]/50 mt-3">
+                        <span className="block text-[10px] font-bold uppercase text-[#b9cacb] mb-1">Reason for reschedule</span>
+                        <p className="text-xs text-[#e4e1e9] italic">"{req.reason}"</p>
                       </div>
                     </div>
-                    <div className="space-y-4">
-                      {analytics.reasons.length === 0 ? (
-                        <p className="text-sm text-[#b9cacb] italic">No exit reasons logged yet.</p>
-                      ) : (
-                        analytics.reasons.map((reason, i) => (
-                          <div key={i}>
-                            <div className="flex justify-between text-sm mb-1.5">
-                              <span className="text-[#b9cacb]">{reason.label}</span>
-                              <span className="font-bold text-[#e4e1e9]">{reason.pct} ({reason.count})</span>
-                            </div>
-                            <div className="w-full bg-[#131318] rounded-full h-2">
-                              <div className={`${getReasonColor(reason.label)} h-2 rounded-full`} style={{ width: reason.pct }}></div>
-                            </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-4 pt-2 border-t border-[#3b494b]/30">
+                    <button
+                      onClick={() => setRejectingRequestId(req.id)}
+                      disabled={isProcessing}
+                      className="flex-1 py-2 bg-transparent border border-[#ffb4ab] text-[#ffb4ab] rounded-lg text-xs font-semibold hover:bg-[#ffb4ab]/10 active:scale-95 disabled:opacity-50 transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleApprove(req.id)}
+                      disabled={isProcessing}
+                      className="flex-1 py-2 bg-[#00dbe9] text-[#131318] rounded-lg text-xs font-bold hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all shadow-[0_0_10px_rgba(0,219,233,0.2)]"
+                    >
+                      {decisionPendingId === req.id ? 'Approving...' : 'Approve'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left Column: Stats & List */}
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+          {/* Analytics Dashboard */}
+          <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-[#00dbe9]">Primary Exit Reasons</h3>
+                <div className="bg-[#131318] border border-[#3b494b] rounded px-3 py-1 text-[11px] font-bold text-[#b9cacb] uppercase tracking-wider">
+                  Real-time Database Stats
+                </div>
+              </div>
+              <div className="space-y-4">
+                {analytics.reasons.length === 0 ? (
+                  <p className="text-sm text-[#b9cacb] italic">No exit reasons logged yet.</p>
+                ) : (
+                  analytics.reasons.map((reason, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-sm mb-1.5">
+                        <span className="text-[#b9cacb]">{reason.label}</span>
+                        <span className="font-bold text-[#e4e1e9]">{reason.pct} ({reason.count})</span>
+                      </div>
+                      <div className="w-full bg-[#131318] rounded-full h-2">
+                        <div className={`${getReasonColor(reason.label)} h-2 rounded-full`} style={{ width: reason.pct }}></div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="w-full md:w-64 flex items-center justify-center relative min-h-[160px]">
+              <svg className="w-48 h-48 transform -rotate-90">
+                <circle className="text-[#131318]" cx="96" cy="96" fill="transparent" r="70" stroke="currentColor" strokeWidth="20"></circle>
+                <circle className="text-[#00dbe9]" cx="96" cy="96" fill="transparent" r="70" stroke="currentColor" strokeDasharray="440" strokeDashoffset={440 - (440 * (analytics.totalExits > 0 ? 1 : 0))} strokeWidth="20"></circle>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-[#00dbe9]">{analytics.totalExits}</span>
+                <span className="text-[10px] font-bold text-[#b9cacb] uppercase tracking-widest">Total Exits</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback Repository & Controls */}
+          <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#3b494b]/30 pb-4">
+              <h3 className="text-xl font-semibold text-[#00dbe9]">Exit Feedback Repository</h3>
+
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  placeholder="Search by name, reason..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#00dbe9] text-[#e4e1e9]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {exitInterviews.length === 0 ? (
+                <div className="p-8 text-center text-[#b9cacb] italic border border-dashed border-[#3b494b]/30 rounded-xl bg-[#131318]/20">
+                  No matching exit interviews found in database.
+                </div>
+              ) : (
+                displayedInterviews.map((interview) => {
+                  const initials = interview.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                  const feedbackText = interview.exitFeedback?.additional_feedback || interview.comments || "No comments provided.";
+                  const reason = interview.exitFeedback?.reason || interview.reason || "N/A";
+
+                  return (
+                    <div
+                      key={interview.id}
+                      onClick={() => handleViewDetails(interview)}
+                      className="p-4 rounded-xl bg-[#131318]/40 border border-[#3b494b]/30 hover:border-[#00dbe9]/50 transition-all duration-300 cursor-pointer hover:bg-[#131318]/60 hover:shadow-lg"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-[#00dbe9]/10 border border-[#00dbe9]/20 flex items-center justify-center text-[#00dbe9] font-bold text-sm">
+                            {initials}
                           </div>
-                        ))
+                          <div>
+                            <p className="font-bold text-[#e4e1e9]">{interview.name}</p>
+                            <p className="text-xs font-medium text-[#b9cacb]">{interview.department} • Relieved: {interview.relievingDate || 'N/A'}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${interview.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}>
+                          {interview.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-[#b9cacb] italic leading-relaxed mb-3">
+                        "{feedbackText}"
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="px-2 py-0.5 bg-[#00dbe9]/5 text-[#00dbe9] text-[10px] font-bold rounded uppercase tracking-wider border border-[#00dbe9]/10">
+                          {reason}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination */}
+            {exitInterviews.length > 0 && (
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-[#3b494b]/20">
+                <p className="text-xs font-medium text-[#b9cacb]">
+                  Showing {startIndex} to {endIndex} of {exitInterviews.length} entries
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    className="w-10 h-10 flex items-center justify-center border border-[#3b494b] rounded-lg hover:bg-[#2a292f] transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                    disabled={currentPage === 1}
+                  >
+                    <Icon>chevron_left</Icon>
+                  </button>
+                  {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-lg text-sm font-medium flex items-center justify-center transition-all ${currentPage === page
+                        ? 'bg-[#00dbe9] text-white font-bold'
+                        : 'border border-[#3b494b] hover:bg-[#2a292f]'
+                        }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    className="w-10 h-10 flex items-center justify-center border border-[#3b494b] rounded-lg hover:bg-[#2a292f] transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                    disabled={currentPage === totalPages}
+                  >
+                    <Icon>chevron_right</Icon>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Reschedule History Logs */}
+          {pastRequests.length > 0 && (
+            <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 shadow-lg">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-[#b9cacb] mb-4">Reschedule Logs</h3>
+              <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
+                {pastRequests.map((req) => {
+                  const resignation = resignations?.find(r => r.id === req.resignation);
+                  const name = resignation ? resignation.name : 'Unknown';
+                  const isApproved = req.status === 'Approved';
+
+                  return (
+                    <div key={req.id} className="p-3 rounded-lg bg-[#2a292f] border border-[#3b494b]/50 text-xs">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-[#e4e1e9]">{name}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${isApproved
+                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                          : 'bg-red-500/10 text-[#ffb4ab] border border-red-500/20'
+                          }`}>
+                          {req.status}
+                        </span>
+                      </div>
+                      <p className="text-[#b9cacb]">Requested: {req.requested_date}</p>
+                      {!isApproved && req.rejection_reason && (
+                        <p className="text-[#ffb4ab] mt-1 italic">"Rejected: {req.rejection_reason}"</p>
                       )}
                     </div>
-                  </div>
-                  <div className="w-full md:w-64 flex items-center justify-center relative min-h-[160px]">
-                    <svg className="w-48 h-48 transform -rotate-90">
-                      <circle className="text-[#131318]" cx="96" cy="96" fill="transparent" r="70" stroke="currentColor" strokeWidth="20"></circle>
-                      <circle className="text-[#00dbe9]" cx="96" cy="96" fill="transparent" r="70" stroke="currentColor" strokeDasharray="440" strokeDashoffset={440 - (440 * (analytics.totalExits > 0 ? 1 : 0))} strokeWidth="20"></circle>
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-[#00dbe9]">{analytics.totalExits}</span>
-                      <span className="text-[10px] font-bold text-[#b9cacb] uppercase tracking-widest">Total Exits</span>
-                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Latest & Meetings */}
+        <div className="col-span-12 lg:col-span-4 space-y-6">
+          {/* Latest Exit Interview Card */}
+          <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl shadow-lg p-6 space-y-4">
+            <h3 className="text-lg font-bold text-[#00dbe9] border-b border-[#3b494b]/30 pb-2 mb-2 flex items-center gap-2">
+              <Icon className="text-[#00dbe9]">portrait</Icon>
+              Latest Exit Interview
+            </h3>
+            {latestInterview ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <img
+                    alt={latestInterview.employeeName}
+                    className="w-16 h-16 rounded-xl object-cover border border-[#3b494b]"
+                    src={getAvatarUrl(latestInterview.email)}
+                  />
+                  <div>
+                    <h4 className="text-base font-bold text-[#e4e1e9]">{latestInterview.employeeName}</h4>
+                    <p className="text-xs text-[#b9cacb]">{latestInterview.designation}</p>
+                    <p className="text-[10px] text-[#b9cacb]/80">ID: {latestInterview.employeeId || 'N/A'}</p>
                   </div>
                 </div>
 
-                {/* Feedback Repository & Controls */}
-                <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#3b494b]/30 pb-4">
-                    <h3 className="text-xl font-semibold text-[#00dbe9]">Exit Feedback Repository</h3>
-
-                    <div className="flex flex-wrap gap-2">
-                      <input
-                        type="text"
-                        placeholder="Search by name, reason..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#00dbe9] text-[#e4e1e9]"
-                      />
-                      <select
-                        value={selectedDept}
-                        onChange={(e) => setSelectedDept(e.target.value)}
-                        className="bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#00dbe9] text-[#e4e1e9]"
-                      >
-                        <option value="">All Departments</option>
-                        <option value="Design">Design</option>
-                        <option value="Engineering">Engineering</option>
-                        <option value="Marketing">Marketing</option>
-                      </select>
-                    </div>
+                <div className="grid grid-cols-2 gap-4 border-t border-[#3b494b]/30 pt-4">
+                  <div>
+                    <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest mb-0.5">Exit Date</p>
+                    <p className="text-xs font-bold text-[#ffb4ab]">{latestInterview.exitDate}</p>
                   </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest mb-0.5">Exit Status</p>
+                    <span className="px-2 py-0.5 bg-[#00dbe9]/10 text-[#00dbe9] text-[9px] uppercase font-bold rounded">
+                      {latestInterview.status}
+                    </span>
+                  </div>
+                </div>
 
-                  <div className="space-y-4">
-                    {exitInterviews.length === 0 ? (
-                      <div className="p-8 text-center text-[#b9cacb] italic border border-dashed border-[#3b494b]/30 rounded-xl bg-[#131318]/20">
-                        No matching exit interviews found in database.
-                      </div>
-                    ) : (
-                      exitInterviews.map((interview) => {
-                        const initials = interview.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-                        const feedbackText = interview.exitFeedback?.additional_feedback || interview.comments || "No comments provided.";
-                        const reason = interview.exitFeedback?.reason || interview.reason || "N/A";
+                <div className="space-y-1">
+                  <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest">Primary Reason</p>
+                  <p className="text-xs font-semibold text-[#00dbe9]">{latestInterview.exitReason}</p>
+                </div>
 
-                        return (
-                          <div key={interview.id} className="p-4 rounded-xl bg-[#131318]/40 border border-[#3b494b]/30 hover:border-[#00dbe9]/30 transition-all duration-300">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-[#00dbe9]/10 border border-[#00dbe9]/20 flex items-center justify-center text-[#00dbe9] font-bold text-sm">
-                                  {initials}
-                                </div>
-                                <div>
-                                  <p className="font-bold text-[#e4e1e9]">{interview.name}</p>
-                                  <p className="text-xs font-medium text-[#b9cacb]">{interview.department} • Relieved: {interview.relievingDate || 'N/A'}</p>
-                                </div>
-                              </div>
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${interview.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                }`}>
-                                {interview.status}
-                              </span>
-                            </div>
-                            <p className="text-sm text-[#b9cacb] italic leading-relaxed mb-3">
-                              "{feedbackText}"
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              <span className="px-2 py-0.5 bg-[#00dbe9]/5 text-[#00dbe9] text-[10px] font-bold rounded uppercase tracking-wider border border-[#00dbe9]/10">
-                                {reason}
-                              </span>
-                            </div>
-                          </div>
-                        );
+                <div className="space-y-1">
+                  <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest">Comments</p>
+                  <p className="text-xs text-[#b9cacb] italic bg-[#131318] p-2.5 rounded border border-[#3b494b]/30 leading-relaxed">
+                    "{latestInterview.comments || latestInterview.exitFeedback?.additional_feedback || 'No comments recorded.'}"
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#b9cacb] italic">No completed exit interviews found.</p>
+            )}
+          </div>
+
+          {/* Meetings Scheduler CRUD */}
+          <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-[#3b494b]/30 pb-3">
+              <h3 className="text-lg font-bold text-[#00dbe9] flex items-center gap-2">
+                <Icon className="text-[#00dbe9]">videocam</Icon>
+                Schedule Final Meeting
+              </h3>
+              <button
+                onClick={() => {
+                  setShowForm(!showForm);
+                  setEditingId(null);
+                  setMeetingEmployeeId('');
+                  setMeetingDate(new Date().toISOString().split('T')[0]);
+                  setMeetingTime('10:00 AM');
+                  setMeetingJitsiUrl('https://meet.jit.si/');
+                  setMeetingError(null);
+                  setMeetingSuccess(null);
+                }}
+                className="p-1 hover:text-[#00dbe9] text-[#b9cacb] transition-colors"
+                title="Schedule Meeting"
+              >
+                <Icon>{showForm ? 'close' : 'add_circle'}</Icon>
+              </button>
+            </div>
+
+            {showForm ? (
+              <form onSubmit={handleMeetingSubmit} className="space-y-4">
+                <h4 className="text-xs font-bold text-[#00dbe9] uppercase">{editingId ? 'Edit Jitsi Meeting' : 'Schedule Jitsi Meeting'}</h4>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Select Employee</label>
+                  <select
+                    value={meetingEmployeeId}
+                    onChange={(e) => setMeetingEmployeeId(e.target.value)}
+                    className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#e4e1e9] text-sm focus:outline-none focus:border-[#00dbe9]"
+                    required
+                  >
+                    <option value="">Choose Employee...</option>
+                    {employees
+                      .filter(emp => {
+                        if (!emp || !emp.email) return false;
+                        const res = resignations?.find(r => r.email && emp.email && r.email.toLowerCase() === emp.email.toLowerCase());
+                        return res && !['Withdrawn', 'Rejected'].includes(res.status);
                       })
+                      .map((emp) => (
+                        <option key={emp.id || emp.email} value={emp.id || ''}>{emp.name || 'Unknown'} ({emp.email || ''})</option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Date</label>
+                    <input
+                      type="date"
+                      value={meetingDate}
+                      onChange={(e) => setMeetingDate(e.target.value)}
+                      className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#e4e1e9] text-sm focus:outline-none focus:border-[#00dbe9]"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1 relative">
+                    <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Time Slot</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const match = meetingTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                        if (match) {
+                          setTempHour(match[1]);
+                          setTempMinute(match[2]);
+                          setTempAmPm(match[3].toUpperCase());
+                        } else {
+                          setTempHour("10");
+                          setTempMinute("00");
+                          setTempAmPm("AM");
+                        }
+                        setShowTimePicker(!showTimePicker);
+                      }}
+                      className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#e4e1e9] text-sm text-left focus:outline-none focus:border-[#00dbe9] flex justify-between items-center"
+                    >
+                      <span>{meetingTime}</span>
+                      <Icon className="text-[#b9cacb] text-base">schedule</Icon>
+                    </button>
+
+                    {showTimePicker && (
+                      <div className="absolute right-0 top-full mt-2 z-50 bg-[#1f1f24] border border-[#3b494b] rounded-xl p-4 shadow-2xl w-[260px] animate-in fade-in zoom-in-95 duration-150">
+                        <div className="grid grid-cols-3 gap-2 h-36">
+                          {/* Hours Column */}
+                          <div className="overflow-y-auto pr-1 border-r border-[#3b494b]/30 custom-scrollbar flex flex-col gap-1">
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
+                              const hStr = h < 10 ? `0${h}` : `${h}`;
+                              const isSelected = parseInt(tempHour, 10) === h;
+                              return (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  onClick={() => setTempHour(hStr)}
+                                  className={`py-1 text-xs font-semibold rounded-lg transition-all ${isSelected
+                                      ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
+                                      : 'text-[#e4e1e9] hover:bg-[#2a292f]'
+                                    }`}
+                                >
+                                  {hStr}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Minutes Column */}
+                          <div className="overflow-y-auto pr-1 border-r border-[#3b494b]/30 custom-scrollbar flex flex-col gap-1">
+                            {["00", "15", "30", "45"].map((m) => {
+                              const isSelected = tempMinute === m;
+                              return (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => setTempMinute(m)}
+                                  className={`py-1 text-xs font-semibold rounded-lg transition-all ${isSelected
+                                      ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
+                                      : 'text-[#e4e1e9] hover:bg-[#2a292f]'
+                                    }`}
+                                >
+                                  {m}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* AM/PM Column */}
+                          <div className="flex flex-col justify-center gap-2">
+                            {["AM", "PM"].map((ampm) => {
+                              const isSelected = tempAmPm === ampm;
+                              return (
+                                <button
+                                  key={ampm}
+                                  type="button"
+                                  onClick={() => setTempAmPm(ampm)}
+                                  className={`py-2 text-xs font-semibold rounded-lg transition-all ${isSelected
+                                      ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
+                                      : 'text-[#e4e1e9] hover:bg-[#2a292f]'
+                                    }`}
+                                >
+                                  {ampm}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Confirmation buttons */}
+                        <div className="flex justify-between items-center mt-3 pt-3 border-t border-[#3b494b]/30">
+                          <button
+                            type="button"
+                            onClick={() => setShowTimePicker(false)}
+                            className="p-1 text-[#ffb4ab] hover:bg-[#ffb4ab]/10 rounded-lg transition-colors flex items-center justify-center"
+                          >
+                            <Icon className="text-xl">close</Icon>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const formattedHour = tempHour.padStart(2, '0');
+                              setMeetingTime(`${formattedHour}:${tempMinute} ${tempAmPm}`);
+                              setShowTimePicker(false);
+                            }}
+                            className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors flex items-center justify-center"
+                          >
+                            <Icon className="text-xl">check</Icon>
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* Reschedule History Logs */}
-                {pastRequests.length > 0 && (
-                  <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 shadow-lg">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-[#b9cacb] mb-4">Reschedule Logs</h3>
-                    <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                      {pastRequests.map((req) => {
-                        const resignation = resignations?.find(r => r.id === req.resignation);
-                        const name = resignation ? resignation.name : 'Unknown';
-                        const isApproved = req.status === 'Approved';
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Jitsi URL</label>
+                  <input
+                    type="url"
+                    value={meetingJitsiUrl}
+                    readOnly
+                    placeholder="https://meet.jit.si/custom-room"
+                    className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#76777d] text-sm focus:outline-none cursor-not-allowed"
+                    required
+                  />
+                </div>
 
-                        return (
-                          <div key={req.id} className="p-3 rounded-lg bg-[#2a292f] border border-[#3b494b]/50 text-xs">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="font-bold text-[#e4e1e9]">{name}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${isApproved
-                                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                                : 'bg-red-500/10 text-[#ffb4ab] border border-red-500/20'
-                                }`}>
-                                {req.status}
-                              </span>
-                            </div>
-                            <p className="text-[#b9cacb]">Requested: {req.requested_date}</p>
-                            {!isApproved && req.rejection_reason && (
-                              <p className="text-[#ffb4ab] mt-1 italic">"Rejected: {req.rejection_reason}"</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                {meetingError && (
+                  <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg">
+                    {meetingError}
                   </div>
                 )}
-              </div>
-
-              {/* Right Column: Latest & Meetings */}
-              <div className="col-span-12 lg:col-span-4 space-y-6">
-                {/* Latest Exit Interview Card */}
-                <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl shadow-lg p-6 space-y-4">
-                  <h3 className="text-lg font-bold text-[#00dbe9] border-b border-[#3b494b]/30 pb-2 mb-2 flex items-center gap-2">
-                    <Icon className="text-[#00dbe9]">portrait</Icon>
-                    Latest Exit Interview
-                  </h3>
-                  {latestInterview ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <img
-                          alt={latestInterview.employeeName}
-                          className="w-16 h-16 rounded-xl object-cover border border-[#3b494b]"
-                          src={getAvatarUrl(latestInterview.email)}
-                        />
-                        <div>
-                          <h4 className="text-base font-bold text-[#e4e1e9]">{latestInterview.employeeName}</h4>
-                          <p className="text-xs text-[#b9cacb]">{latestInterview.designation}</p>
-                          <p className="text-[10px] text-[#b9cacb]/80">ID: {latestInterview.employeeId || 'N/A'}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 border-t border-[#3b494b]/30 pt-4">
-                        <div>
-                          <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest mb-0.5">Exit Date</p>
-                          <p className="text-xs font-bold text-[#ffb4ab]">{latestInterview.exitDate}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest mb-0.5">Exit Status</p>
-                          <span className="px-2 py-0.5 bg-[#00dbe9]/10 text-[#00dbe9] text-[9px] uppercase font-bold rounded">
-                            {latestInterview.status}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest">Primary Reason</p>
-                        <p className="text-xs font-semibold text-[#00dbe9]">{latestInterview.exitReason}</p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-bold text-[#b9cacb] uppercase tracking-widest">Comments</p>
-                        <p className="text-xs text-[#b9cacb] italic bg-[#131318] p-2.5 rounded border border-[#3b494b]/30 leading-relaxed">
-                          "{latestInterview.comments || latestInterview.exitFeedback?.additional_feedback || 'No comments recorded.'}"
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#b9cacb] italic">No completed exit interviews found.</p>
-                  )}
-                </div>
-
-                {/* Meetings Scheduler CRUD */}
-                <div className="bg-[#1f1f24] border border-[#3b494b]/30 rounded-xl p-6 space-y-6">
-                  <div className="flex justify-between items-center border-b border-[#3b494b]/30 pb-3">
-                    <h3 className="text-lg font-bold text-[#00dbe9] flex items-center gap-2">
-                      <Icon className="text-[#00dbe9]">videocam</Icon>
-                      Schedule Final Meeting
-                    </h3>
-                    <button
-                      onClick={() => {
-                        setShowForm(!showForm);
-                        setEditingId(null);
-                        setMeetingEmployeeId('');
-                        setMeetingDate(new Date().toISOString().split('T')[0]);
-                        setMeetingTime('10:00 AM');
-                        setMeetingJitsiUrl('https://meet.jit.si/');
-                        setMeetingError(null);
-                        setMeetingSuccess(null);
-                      }}
-                      className="p-1 hover:text-[#00dbe9] text-[#b9cacb] transition-colors"
-                      title="Schedule Meeting"
-                    >
-                      <Icon>{showForm ? 'close' : 'add_circle'}</Icon>
-                    </button>
+                {meetingSuccess && (
+                  <div className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-lg">
+                    {meetingSuccess}
                   </div>
+                )}
 
-                  {showForm ? (
-                    <form onSubmit={handleMeetingSubmit} className="space-y-4">
-                      <h4 className="text-xs font-bold text-[#00dbe9] uppercase">{editingId ? 'Edit Jitsi Meeting' : 'Schedule Jitsi Meeting'}</h4>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={meetingSubmitting}
+                    className="flex-1 py-2 bg-[#00dbe9] text-[#131318] font-bold rounded-lg text-sm hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Icon className="text-[18px]">event_available</Icon>
+                    {editingId ? 'Save' : 'Schedule'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="px-4 py-2 bg-[#2a292f] border border-[#3b494b] text-[#e4e1e9] font-bold rounded-lg text-sm hover:bg-[#323138] transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-[#b9cacb] leading-relaxed">
+                  Schedule secure, one-on-one video calls to conduct offboarding Exit Interviews.
+                </p>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Select Employee</label>
-                        <select
-                          value={meetingEmployeeId}
-                          onChange={(e) => setMeetingEmployeeId(e.target.value)}
-                          className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#e4e1e9] text-sm focus:outline-none focus:border-[#00dbe9]"
-                          required
-                        >
-                          <option value="">Choose Employee...</option>
-                          {employees.map((emp) => (
-                            <option key={emp.id} value={emp.id}>{emp.name} ({emp.email})</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Date</label>
-                          <input
-                            type="date"
-                            value={meetingDate}
-                            onChange={(e) => setMeetingDate(e.target.value)}
-                            className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#e4e1e9] text-sm focus:outline-none focus:border-[#00dbe9]"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Time Slot</label>
-                          <select
-                            value={meetingTime}
-                            onChange={(e) => setMeetingTime(e.target.value)}
-                            className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#e4e1e9] text-sm focus:outline-none focus:border-[#00dbe9]"
-                            required
-                          >
-                            <option>10:00 AM</option>
-                            <option>11:30 AM</option>
-                            <option>02:30 PM</option>
-                            <option>04:00 PM</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Jitsi URL</label>
-                        <input
-                          type="url"
-                          value={meetingJitsiUrl}
-                          onChange={(e) => setMeetingJitsiUrl(e.target.value)}
-                          placeholder="https://meet.jit.si/custom-room"
-                          className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-3 py-2 text-[#e4e1e9] text-sm focus:outline-none focus:border-[#00dbe9]"
-                          required
-                        />
-                      </div>
-
-                      {meetingError && (
-                        <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg">
-                          {meetingError}
-                        </div>
-                      )}
-                      {meetingSuccess && (
-                        <div className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-lg">
-                          {meetingSuccess}
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={meetingSubmitting}
-                          className="flex-1 py-2 bg-[#00dbe9] text-[#131318] font-bold rounded-lg text-sm hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
-                        >
-                          <Icon className="text-[18px]">event_available</Icon>
-                          {editingId ? 'Save' : 'Schedule'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowForm(false)}
-                          className="px-4 py-2 bg-[#2a292f] border border-[#3b494b] text-[#e4e1e9] font-bold rounded-lg text-sm hover:bg-[#323138] transition-all"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+                <div className="space-y-3">
+                  {meetings.length === 0 ? (
+                    <p className="text-xs text-[#b9cacb] italic text-center py-4">No meetings scheduled.</p>
                   ) : (
-                    <div className="space-y-4">
-                      <p className="text-xs text-[#b9cacb] leading-relaxed">
-                        Schedule secure, one-on-one video calls to conduct offboarding Exit Interviews.
-                      </p>
+                    meetings.map((meeting) => (
+                      <div key={meeting.id} className="p-3 bg-[#131318]/50 border border-[#3b494b]/40 rounded-lg space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-xs font-bold text-[#e4e1e9]">{meeting.employeeName}</h4>
+                            <p className="text-[10px] text-[#b9cacb]">{meeting.date} at {meeting.timeSlot}</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleEditMeeting(meeting)}
+                              className="text-[#b9cacb] hover:text-[#00dbe9] p-0.5 transition-colors"
+                              title="Edit"
+                            >
+                              <Icon className="text-[16px]">edit</Icon>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMeeting(meeting.id)}
+                              className="text-[#b9cacb] hover:text-[#ffb4ab] p-0.5 transition-colors"
+                              title="Cancel"
+                            >
+                              <Icon className="text-[16px]">delete</Icon>
+                            </button>
+                          </div>
+                        </div>
 
-                      <div className="space-y-3">
-                        {meetings.length === 0 ? (
-                          <p className="text-xs text-[#b9cacb] italic text-center py-4">No meetings scheduled.</p>
-                        ) : (
-                          meetings.map((meeting) => (
-                            <div key={meeting.id} className="p-3 bg-[#131318]/50 border border-[#3b494b]/40 rounded-lg space-y-2">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h4 className="text-xs font-bold text-[#e4e1e9]">{meeting.employeeName}</h4>
-                                  <p className="text-[10px] text-[#b9cacb]">{meeting.date} at {meeting.timeSlot}</p>
-                                </div>
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={() => handleEditMeeting(meeting)}
-                                    className="text-[#b9cacb] hover:text-[#00dbe9] p-0.5 transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Icon className="text-[16px]">edit</Icon>
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteMeeting(meeting.id)}
-                                    className="text-[#b9cacb] hover:text-[#ffb4ab] p-0.5 transition-colors"
-                                    title="Cancel"
-                                  >
-                                    <Icon className="text-[16px]">delete</Icon>
-                                  </button>
-                                </div>
-                              </div>
-
-                              {meeting.jitsiUrl && (
-                                <a
-                                  href={meeting.jitsiUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="w-full py-1.5 bg-[#00dbe9]/10 hover:bg-[#00dbe9]/20 text-[#00dbe9] border border-[#00dbe9]/20 font-bold rounded-md text-[11px] flex items-center justify-center gap-1.5 transition-all"
-                                >
-                                  <Icon className="text-[14px]">video_call</Icon>
-                                  Join Meeting
-                                </a>
-                              )}
-                            </div>
-                          ))
+                        {meeting.jitsiUrl && (
+                          <a
+                            href={meeting.jitsiUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-1.5 bg-[#00dbe9]/10 hover:bg-[#00dbe9]/20 text-[#00dbe9] border border-[#00dbe9]/20 font-bold rounded-md text-[11px] flex items-center justify-center gap-1.5 transition-all"
+                          >
+                            <Icon className="text-[14px]">video_call</Icon>
+                            Join Meeting
+                          </a>
                         )}
                       </div>
-
-                      <button
-                        onClick={() => setShowForm(true)}
-                        className="w-full py-2.5 bg-[#00dbe9] text-[#131318] font-bold rounded-lg text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-md"
-                      >
-                        <Icon className="text-[18px]">add</Icon>
-                        Schedule New Meeting
-                      </button>
-                    </div>
+                    ))
                   )}
                 </div>
-              </div>
-            </div>
 
-            {/* Rejection Reason Modal */}
-            {rejectingRequestId !== null && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000080] backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="relative w-full max-w-md rounded-[28px] border border-[#3b494b] bg-[#1f1f24] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-                  <button
-                    onClick={() => {
-                      setRejectingRequestId(null);
-                      setRejectionReason('');
-                    }}
-                    className="absolute top-5 right-5 rounded-full border border-[#3b494b] bg-[#131318] p-3 text-[#b9cacb] hover:text-[#ffb4ab] transition-colors"
-                  >
-                    <Icon>close</Icon>
-                  </button>
-
-                  <form onSubmit={handleRejectSubmit} className="space-y-6 text-left">
-                    <div>
-                      <h3 className="text-2xl font-bold text-[#ffb4ab]">Reject Reschedule Request</h3>
-                      <p className="text-sm text-[#b9cacb] mt-2">
-                        Please provide a reason for declining the rescheduling request. This is mandatory.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#b9cacb] mb-2">
-                        Reason for Rejection *
-                      </label>
-                      <textarea
-                        rows="4"
-                        required
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        placeholder="E.g., Another conflict exists at this time slot, or standard times are required."
-                        className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-4 py-3 text-sm text-[#e4e1e9] placeholder-[#b9cacb] focus:outline-none focus:border-[#ffb4ab] transition-all"
-                      />
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRejectingRequestId(null);
-                          setRejectionReason('');
-                        }}
-                        className="flex-1 py-3 px-4 border border-[#3b494b] text-[#b9cacb] hover:bg-[#2a292f] hover:text-[#e4e1e9] font-semibold rounded-xl transition-colors text-sm"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={submittingDecision || !rejectionReason.trim()}
-                        className="flex-1 py-3 px-4 bg-[#ffb4ab] text-[#131318] font-bold rounded-xl hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-[0_0_15px_rgba(255,180,171,0.3)]"
-                      >
-                        {submittingDecision ? 'Submitting...' : 'Reject Request'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="w-full py-2.5 bg-[#00dbe9] text-[#131318] font-bold rounded-lg text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-md"
+                >
+                  <Icon className="text-[18px]">add</Icon>
+                  Schedule New Meeting
+                </button>
               </div>
             )}
           </div>
-        );
+        </div>
+      </div>
+
+      {/* Rejection Reason Modal */}
+      {rejectingRequestId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000080] backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-[28px] border border-[#3b494b] bg-[#1f1f24] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setRejectingRequestId(null);
+                setRejectionReason('');
+              }}
+              className="absolute top-5 right-5 rounded-full border border-[#3b494b] bg-[#131318] p-3 text-[#b9cacb] hover:text-[#ffb4ab] transition-colors"
+            >
+              <Icon>close</Icon>
+            </button>
+
+            <form onSubmit={handleRejectSubmit} className="space-y-6 text-left">
+              <div>
+                <h3 className="text-2xl font-bold text-[#ffb4ab]">Reject Reschedule Request</h3>
+                <p className="text-sm text-[#b9cacb] mt-2">
+                  Please provide a reason for declining the rescheduling request. This is mandatory.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#b9cacb] mb-2">
+                  Reason for Rejection *
+                </label>
+                <textarea
+                  rows="4"
+                  required
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="E.g., Another conflict exists at this time slot, or standard times are required."
+                  className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-4 py-3 text-sm text-[#e4e1e9] placeholder-[#b9cacb] focus:outline-none focus:border-[#ffb4ab] transition-all"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectingRequestId(null);
+                    setRejectionReason('');
+                  }}
+                  className="flex-1 py-3 px-4 border border-[#3b494b] text-[#b9cacb] hover:bg-[#2a292f] hover:text-[#e4e1e9] font-semibold rounded-xl transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingDecision || !rejectionReason.trim()}
+                  className="flex-1 py-3 px-4 bg-[#ffb4ab] text-[#131318] font-bold rounded-xl hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-[0_0_15px_rgba(255,180,171,0.3)]"
+                >
+                  {submittingDecision ? 'Submitting...' : 'Reject Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Interview Details Modal */}
+      {selectedExitInterviewDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000080] backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-4xl rounded-[28px] border border-[#3b494b] bg-[#1f1f24] shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col overflow-hidden text-left">
+
+            {/* Fixed Header */}
+            <div className="p-6 md:p-8 pb-4 border-b border-[#3b494b]/30 relative">
+              <button
+                onClick={() => setSelectedExitInterviewDetail(null)}
+                className="absolute top-6 right-6 rounded-full border border-[#3b494b] bg-[#131318] p-2.5 text-[#b9cacb] hover:text-[#00dbe9] transition-colors"
+              >
+                <Icon>close</Icon>
+              </button>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black text-[#00dbe9] tracking-tight">Exit Interview Details</h2>
+                <p className="text-sm text-[#b9cacb] mt-1">Complete read-only offboarding questionnaire submission.</p>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scrollbar">
+              {/* Meta Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-[#131318] p-4 rounded-xl border border-[#3b494b]">
+                  <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Employee Name</p>
+                  <p className="text-base font-bold text-[#e4e1e9] mt-1">{selectedExitInterviewDetail.employee_name}</p>
+                </div>
+                <div className="bg-[#131318] p-4 rounded-xl border border-[#3b494b]">
+                  <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Employee ID</p>
+                  <p className="text-base font-bold text-[#e4e1e9] mt-1">{selectedExitInterviewDetail.employee_id || 'N/A'}</p>
+                </div>
+                <div className="bg-[#131318] p-4 rounded-xl border border-[#3b494b]">
+                  <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Last Working Day</p>
+                  <p className="text-base font-bold text-[#e4e1e9] mt-1">{selectedExitInterviewDetail.last_working_day || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Progress Bar (Locked to 100% since it is submitted) */}
+              <div className="bg-[#131318] p-5 rounded-xl border border-[#3b494b] space-y-2">
+                <div className="flex justify-between items-center text-xs font-bold">
+                  <span className="text-[#00dbe9]">Exit Questionnaire</span>
+                  <span className="text-green-400">100% Completed</span>
+                </div>
+                <div className="w-full bg-[#2a292f] h-2.5 rounded-full overflow-hidden">
+                  <div className="bg-green-400 h-full w-full"></div>
+                </div>
+              </div>
+
+              {/* Q&A List */}
+              <div className="space-y-4">
+                {selectedExitInterviewDetail.qa && selectedExitInterviewDetail.qa.map((item, idx) => {
+                  const isStars = item.answer.includes('★') || item.answer.includes('☆');
+                  return (
+                    <div key={idx} className="p-5 rounded-xl bg-[#2a292f] border border-[#3b494b]/60 space-y-2">
+                      <h4 className="text-sm font-bold text-[#e4e1e9]">{item.question}</h4>
+                      {isStars ? (
+                        <p className="text-xl font-bold text-[#00dbe9] tracking-widest">{item.answer}</p>
+                      ) : (
+                        <p className="text-sm text-[#b9cacb] leading-relaxed whitespace-pre-wrap">{item.answer}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="p-6 md:p-8 pt-4 border-t border-[#3b494b]/30 bg-[#1f1f24] flex justify-end">
+              <button
+                onClick={() => setSelectedExitInterviewDetail(null)}
+                className="px-6 py-2.5 bg-[#2a292f] border border-[#3b494b] text-[#e4e1e9] font-bold rounded-xl hover:bg-[#323138] transition-all text-sm shadow-md"
+              >
+                Close Details
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Spinner overlay for fetching details */}
+      {loadingDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000060] backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <span className="animate-spin material-symbols-outlined text-[48px] text-[#00dbe9]">progress_activity</span>
+            <p className="text-[#b9cacb] text-sm font-medium">Loading questionnaire details...</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

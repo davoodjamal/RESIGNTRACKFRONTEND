@@ -5,7 +5,8 @@ import { fetchEmployees } from '../../api';
 const statusStyles = {
   Available: 'bg-[#33fb0a]/10 text-[#33fb0a]',
   Assigned: 'bg-[#00dbe9]/10 text-[#00dbe9]',
-  'Under Maintenance': 'bg-[#ffc107]/10 text-[#ffc107]'
+  'Under Maintenance': 'bg-[#ffc107]/10 text-[#ffc107]',
+  Disposed: 'bg-[#f43f5e]/10 text-[#f43f5e]'
 };
 
 export default function AssetManagement({
@@ -214,6 +215,7 @@ export default function AssetManagement({
                   <option value="Available">Available</option>
                   <option value="Assigned">Assigned</option>
                   <option value="Under Maintenance">Under Maintenance</option>
+                  <option value="Disposed">Disposed</option>
                 </select>
                 <select
                   value={typeFilter}
@@ -286,6 +288,7 @@ export default function AssetManagement({
                               <option value="Available">Available</option>
                               <option value="Assigned" disabled>Assigned</option>
                               <option value="Under Maintenance">Maintenance</option>
+                              <option value="Disposed">Disposed</option>
                             </select>
                           </div>
                         </td>
@@ -577,6 +580,7 @@ export default function AssetManagement({
                   >
                     <option value="Available">Available</option>
                     <option value="Under Maintenance">Under Maintenance</option>
+                    <option value="Disposed">Disposed</option>
                   </select>
                 </div>
               </div>

@@ -30,7 +30,21 @@ async function request(url, options = {}) {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || data.detail || `Request failed with status ${res.status}`);
+    let errorMsg = data.error || data.detail;
+    if (!errorMsg && data && typeof data === 'object') {
+      const fieldErrors = [];
+      for (const [key, value] of Object.entries(data)) {
+        if (Array.isArray(value)) {
+          fieldErrors.push(`${key}: ${value.join(', ')}`);
+        } else if (typeof value === 'string') {
+          fieldErrors.push(`${key}: ${value}`);
+        }
+      }
+      if (fieldErrors.length > 0) {
+        errorMsg = fieldErrors.join(' | ');
+      }
+    }
+    throw new Error(errorMsg || `Request failed with status ${res.status}`);
   }
 
   if (res.status === 204) {
@@ -135,7 +149,7 @@ export async function saveDraftResignation(data, id = null) {
 }
 
 export async function submitResignation(data) {
-  return request(`${API_BASE}/resignations/`, {
+  return request(`${API_BASE}/resignations/submit/`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -218,11 +232,30 @@ export async function updateProfile(data) {
 }
 
 // ─── Exit Interview Feedback ────────────────────────────
-export async function submitExitInterview(resignationId, exitFeedback) {
-  return request(`${API_BASE}/resignations/${resignationId}/feedback/`, {
-    method: 'PATCH',
-    body: JSON.stringify({ exitFeedback }),
+export async function submitExitInterview(resignationId, exitFeedback, status = 'SUBMITTED') {
+  const body = {
+    resignation_id: resignationId,
+    status: status,
+    reason_for_resignation: exitFeedback.reason === 'Other' && exitFeedback.otherReasonText ? `Other: ${exitFeedback.otherReasonText}` : exitFeedback.reason,
+    role_satisfaction: exitFeedback.roleRating,
+    manager_relationship: exitFeedback.managerRating,
+    career_growth: exitFeedback.growthRating,
+    company_culture: exitFeedback.cultureRating,
+    adequate_training: exitFeedback.training === 'yes' ? 'Yes, absolutely' : 'No, it was lacking',
+    most_enjoyed: exitFeedback.enjoyText,
+    suggested_improvements: exitFeedback.improveText,
+    recommend_to_others: exitFeedback.recommend === 'yes' ? 'Yes' : 'No',
+    consider_rejoining: exitFeedback.rejoin === 'yes' ? 'Yes' : 'No'
+  };
+
+  return request(`${API_BASE}/v1/employee/exit-interview`, {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
+}
+
+export async function fetchEmployeeExitInterview(employeeId) {
+  return request(`${API_BASE}/v1/hr/directory/employee/${employeeId}/exit-interview`);
 }
 
 // ─── Dashboard Metrics ──────────────────────────────────
@@ -331,97 +364,111 @@ export async function returnAsset(id, data) {
   });
 }
 
-    // ─── Reschedule Requests ─────────────────────────────────
-    export async function createRescheduleRequest(data) {
-      return request(`${API_BASE}/resignations/reschedule/`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    }
+// ─── Reschedule Requests ─────────────────────────────────
+export async function createRescheduleRequest(data) {
+  return request(`${API_BASE}/resignations/reschedule/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
 
-    export async function fetchAssetDashboard() {
-      return request(`${API_BASE}/assets/dashboard/`);
-    }
+export async function fetchAssetDashboard() {
+  return request(`${API_BASE}/assets/dashboard/`);
+}
 
-    export async function fetchEmployees() {
-      return request(`${API_BASE}/employees/`);
-    }
+export async function fetchEmployees() {
+  return request(`${API_BASE}/employees/`);
+}
 
-    // ─── Exit Interview & Meetings API ───────────────────────
-    export async function fetchExitInterviews(params = {}) {
-      const query = new URLSearchParams();
-      if (params.search) query.append('search', params.search);
-      if (params.reason) query.append('reason', params.reason);
-      if (params.department) query.append('department', params.department);
-      if (params.ordering) query.append('ordering', params.ordering);
-      const queryString = query.toString();
-      return request(`${API_BASE}/exit-interviews/${queryString ? `?${queryString}` : ''}`);
-    }
+// ─── Exit Interview & Meetings API ───────────────────────
+export async function fetchExitInterviews(params = {}) {
+  const query = new URLSearchParams();
+  if (params.search) query.append('search', params.search);
+  if (params.reason) query.append('reason', params.reason);
+  if (params.department) query.append('department', params.department);
+  if (params.ordering) query.append('ordering', params.ordering);
+  const queryString = query.toString();
+  return request(`${API_BASE}/exit-interviews/${queryString ? `?${queryString}` : ''}`);
+}
 
-    export async function fetchLatestExitInterview() {
-      return request(`${API_BASE}/exit-interviews/latest/`);
-    }
+export async function fetchLatestExitInterview() {
+  return request(`${API_BASE}/exit-interviews/latest/`);
+}
 
-    export async function fetchExitAnalytics() {
-      return request(`${API_BASE}/exit-interviews/analytics/`);
-    }
+export async function fetchExitAnalytics() {
+  return request(`${API_BASE}/exit-interviews/analytics/`);
+}
 
-    export async function fetchMeetings() {
-      return request(`${API_BASE}/meetings/`);
-    }
+export async function fetchMeetings() {
+  return request(`${API_BASE}/meetings/`);
+}
 
-    export async function createMeeting(data) {
-      return request(`${API_BASE}/meetings/`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    }
+export async function createMeeting(data) {
+  return request(`${API_BASE}/exit-meetings/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
 
-    export async function updateMeeting(id, data) {
-      return request(`${API_BASE}/meetings/${id}/`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    }
+export async function updateMeeting(id, data) {
+  return request(`${API_BASE}/meetings/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
 
-    export async function deleteMeeting(id) {
-      return request(`${API_BASE}/meetings/${id}/`, {
-        method: 'DELETE',
-      });
-    }
+export async function deleteMeeting(id) {
+  return request(`${API_BASE}/meetings/${id}/`, {
+    method: 'DELETE',
+  });
+}
 
-    export async function fetchRescheduleRequests() {
-      return request(`${API_BASE}/resignations/reschedule/list/`);
-    }
+export async function fetchRescheduleRequests() {
+  return request(`${API_BASE}/resignations/reschedule/list/`);
+}
 
-    export async function decideRescheduleRequest(requestId, decision, comments = '') {
-      return request(`${API_BASE}/resignations/reschedule/${requestId}/decision/`, {
-        method: 'POST',
-        body: JSON.stringify({ decision, rejection_reason: comments }),
-      });
-    }
+export async function decideRescheduleRequest(requestId, decision, comments = '') {
+  return request(`${API_BASE}/resignations/reschedule/${requestId}/decision/`, {
+    method: 'POST',
+    body: JSON.stringify({ decision, rejection_reason: comments }),
+  });
+}
 
-    // ─── Notifications ──────────────────────────────────────
-    export async function fetchNotifications() {
-      return request(`${API_BASE}/notifications/`);
-    }
+// ─── Notifications ──────────────────────────────────────
+export async function fetchNotifications() {
+  return request(`${API_BASE}/notifications/`);
+}
 
-    export async function markNotificationRead(id) {
-      return request(`${API_BASE}/notifications/${id}/read/`, {
-        method: 'POST',
-      });
-    }
+export async function markNotificationRead(id) {
+  return request(`${API_BASE}/notifications/${id}/read/`, {
+    method: 'POST',
+  });
+}
 
-    export async function markAllNotificationsRead() {
-      return request(`${API_BASE}/notifications/read-all/`, {
-        method: 'POST',
-      });
-    }
+export async function markAllNotificationsRead() {
+  return request(`${API_BASE}/notifications/read-all/`, {
+    method: 'POST',
+  });
+}
 
-    // ─── Global Search ──────────────────────────────────────
-    export async function searchGlobal(query) {
-      return request(`${API_BASE}/search/?q=${encodeURIComponent(query)}`);
-    }
+// ─── Global Search ──────────────────────────────────────
+export async function searchGlobal(query) {
+  return request(`${API_BASE}/search/?q=${encodeURIComponent(query)}`);
+}
+
+// ─── Resignation Processing ─────────────────────────────
+export async function processResignation(employeeId, action, remarks) {
+  return request(`${API_BASE}/resignation/process/`, {
+    method: 'PUT',
+    body: JSON.stringify({ employeeId, action, remarks }),
+  });
+}
+
+// ─── Ex-Employees ───────────────────────────────────────
+export async function fetchExEmployees() {
+  return request(`${API_BASE}/ex-employees/`);
+}
+
 
 
 

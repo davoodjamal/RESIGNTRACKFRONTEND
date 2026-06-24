@@ -32,7 +32,8 @@ export default function EmployeePortal({
   onMarkAllNotificationsRead
 }) {
   const employeeResignation = resignations.find(r => r.email === user.email);
-  const [activeTab, setActiveTab] = useState(employeeResignation ? 'dashboard' : 'resignation');
+  const hasActiveResignation = !!(employeeResignation && ['Awaiting Exit Interview', 'Pending', 'Approved', 'More Info Requested'].includes(employeeResignation.status));
+  const [activeTab, setActiveTab] = useState(hasActiveResignation ? 'dashboard' : 'resignation');
   const [profileView, setProfileView] = useState('profile');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
@@ -42,16 +43,37 @@ export default function EmployeePortal({
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return employeeResignation ? (
-          <EmployeeDashboard 
-            user={user} 
-            resignation={employeeResignation} 
-            systemSettings={systemSettings}
-            noticePeriodData={noticePeriodData}
-            checklistTasks={checklistTasks}
-            onWithdraw={() => onWithdrawResignation(employeeResignation.id)}
-          />
-        ) : (
+        if (employeeResignation) {
+          if (employeeResignation.status === 'Withdrawn') {
+            return (
+              <div className="flex items-center justify-center h-full text-[#b9cacb] pt-20">
+                 <div className="text-center">
+                    <Icon className="text-[64px] mb-4 text-[#ffb4ab]">cancel</Icon>
+                    <p className="text-lg font-bold text-[#ffb4ab]">You have withdrawn your resignation request.</p>
+                    <p className="text-sm mt-1">If this was a mistake, you can submit a new resignation request.</p>
+                    <button 
+                      onClick={() => setActiveTab('resignation')}
+                      className="mt-6 px-6 py-2.5 bg-[#00dbe9] text-[#131318] rounded-xl font-bold hover:opacity-90 transition-all shadow-[0_0_15px_rgba(0,219,233,0.3)]"
+                    >
+                      Go to Resignation Submission
+                    </button>
+                 </div>
+              </div>
+            );
+          }
+          return (
+            <EmployeeDashboard 
+              user={user} 
+              resignation={employeeResignation} 
+              systemSettings={systemSettings}
+              noticePeriodData={noticePeriodData}
+              checklistTasks={checklistTasks}
+              onWithdraw={() => onWithdrawResignation(employeeResignation.id)}
+              onReapply={() => setActiveTab('resignation')}
+            />
+          );
+        }
+        return (
           <div className="flex items-center justify-center h-full text-[#b9cacb] pt-20">
              <div className="text-center">
                 <Icon className="text-[64px] mb-4 text-[#3b494b]">info</Icon>
@@ -73,7 +95,7 @@ export default function EmployeePortal({
             systemSettings={systemSettings} 
             onSubmitResignation={(data) => {
               onSubmitResignation(data);
-              setActiveTab('dashboard'); // Redirect to dashboard on submit
+              setActiveTab('exit-interview'); // Redirect to exit interview on submit
             }} 
           />
         );
@@ -98,7 +120,7 @@ export default function EmployeePortal({
             resignation={employeeResignation} 
             onSubmit={(feedback) => {
               if (employeeResignation) {
-                onSaveExitInterview(employeeResignation.id, feedback);
+                onSaveExitInterview(employeeResignation.id, feedback, 'SUBMITTED');
                 alert('Exit interview submitted successfully.');
                 setActiveTab('dashboard');
               } else {
@@ -107,7 +129,7 @@ export default function EmployeePortal({
             }}
             onSave={(feedback) => {
               if (employeeResignation) {
-                onSaveExitInterview(employeeResignation.id, feedback);
+                onSaveExitInterview(employeeResignation.id, feedback, 'DRAFT');
                 alert('Draft saved successfully.');
               } else {
                 alert('No active resignation found to save draft.');
@@ -141,6 +163,7 @@ export default function EmployeePortal({
          onOpenProfile={() => setProfileView('profile')}
          onOpenHelp={() => setIsHelpOpen(true)}
          onOpenLogout={() => setIsLogoutOpen(true)}
+         hasActiveResignation={!!(employeeResignation && ['Awaiting Exit Interview', 'Pending', 'Approved', 'More Info Requested'].includes(employeeResignation.status))}
       />
       
       <Header 
@@ -166,12 +189,12 @@ export default function EmployeePortal({
   );
 }
 
-function SideNav({ activeTab, setActiveTab, onOpenProfile, onOpenHelp, onOpenLogout }) {
+function SideNav({ activeTab, setActiveTab, onOpenProfile, onOpenHelp, onOpenLogout, hasActiveResignation }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'profile', label: 'Profile', icon: 'person' },
-    { id: 'resignation', label: 'Resignation', icon: 'description' },
-    { id: 'offboarding', label: 'Offboarding', icon: 'fact_check' },
+    ...(!hasActiveResignation ? [{ id: 'resignation', label: 'Resignation', icon: 'description' }] : []),
+    ...(hasActiveResignation ? [{ id: 'offboarding', label: 'Offboarding', icon: 'fact_check' }] : []),
     { id: 'assets', label: 'Assets', icon: 'inventory_2' }
   ];
 
@@ -397,7 +420,6 @@ function Header({ user, isNotificationsOpen, setIsNotificationsOpen, notificatio
       </div>
 
       <div className="flex items-center gap-6">
-         <h2 className="hidden lg:block text-lg font-bold text-[#00dbe9]">Resignation Manager</h2>
          <div className="flex items-center gap-5 relative">
             <button onClick={toggleNotif} className="relative text-[#b9cacb] hover:text-[#00dbe9] transition-colors p-1">
                <Icon className="text-[26px]">notifications</Icon>
@@ -410,7 +432,7 @@ function Header({ user, isNotificationsOpen, setIsNotificationsOpen, notificatio
 
             <div className="hidden md:flex flex-col items-end">
                <span className="text-sm font-bold text-[#e4e1e9] leading-tight">{user.username || 'Alex Thompson'}</span>
-               <span className="text-[11px] font-medium text-[#b9cacb]">Senior Lead Designer</span>
+               <span className="text-[11px] font-medium text-[#b9cacb]">{user.designation || 'Employee'}</span>
             </div>
             <div className="h-10 w-10 rounded-full bg-[#00dbe9] text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-[#d8e2ff]">
                {user.username ? user.username.charAt(0) : 'A'}

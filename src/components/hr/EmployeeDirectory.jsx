@@ -44,7 +44,7 @@ export default function EmployeeDirectory({ onEmployeeClick }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('Active');
+  const [statusFilter, setStatusFilter] = useState('In-Notice');
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 6;

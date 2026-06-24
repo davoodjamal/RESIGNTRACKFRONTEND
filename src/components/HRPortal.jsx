@@ -53,13 +53,23 @@ export default function HRPortal({
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'Dashboard':
-        return <HRDashboard resignations={resignations} setActiveTab={setActiveTab} />;
+        return (
+          <HRDashboard
+            resignations={resignations}
+            setActiveTab={setActiveTab}
+            onViewEmployee={(id) => {
+              setSelectedEmployeeId(id);
+              setActiveTab('Directory');
+            }}
+          />
+        );
       case 'Directory':
         if (selectedEmployeeId) {
           return (
             <EmployeeDetails
               employeeId={selectedEmployeeId}
               onBack={() => setSelectedEmployeeId(null)}
+              setActiveTab={setActiveTab}
             />
           );
         }
