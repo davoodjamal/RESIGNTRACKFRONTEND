@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Icon from '../Icon';
-import { fetchEmployeeById, processResignation } from '../../api';
+import { fetchEmployeeById, processResignation, fetchMeetings, deleteMeeting, createMeeting } from '../../api';
 
 const defaultImages = {
   'employee@resigntrack.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDp0nZai5ic4toQDoBtjQMrJAivFopGgH1jUAiVLTq_f5BYy-h3wFlaFs5J4UbwnVCrsJq0botwTQJjwp2C0nmfYGZpAAnIKNtQ_HinjPlMfoJOSLS5vNH7Wc0SMgDlN0uVBX5eT3FMlBiMriatn2t8niS9dANx1nnFgG1AzsHoO3ZvLZbYgqqmAqe2jJm7v3pvGBo30hvCx4XR-p1rPBIfyAsZe5-lyFSEwHyGjg7Xcmy8jUsgVV4Uq4Wr5V4YV4ff4T5Qha0HGRM',
@@ -25,8 +25,9 @@ const getStatusColor = (status) => {
   }
 };
 
-export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
+export default function EmployeeDetails({ employeeId, onBack, setActiveTab, onRefreshResignations }) {
   const [employee, setEmployee] = useState(null);
+  const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
@@ -35,6 +36,16 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
   const [processingAction, setProcessingAction] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState(null);
+  const [selectedNoticePeriod, setSelectedNoticePeriod] = useState('30');
+  const [meetHour, setMeetHour] = useState('10');
+  const [meetMinute, setMeetMinute] = useState('00');
+  const [meetPeriod, setMeetPeriod] = useState('AM');
+  const [meetDate, setMeetDate] = useState('');
+  const [meetJitsiUrl, setMeetJitsiUrl] = useState('');
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+
+  const allTasksCompleted = employee?.tasks && employee.tasks.length > 0 && employee.tasks.every(t => t.status.toLowerCase() === 'completed');
 
   useEffect(() => {
     if (toast) {
@@ -47,10 +58,16 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
     setIsProcessing(true);
     setProcessingAction(action);
     try {
-      const updatedEmployee = await processResignation(employeeId, action, processingRemarks);
+      const updatedEmployee = await processResignation(employeeId, action, processingRemarks, selectedNoticePeriod);
       setEmployee(updatedEmployee);
       setProcessingRemarks('');
+      if (updatedEmployee && updatedEmployee.noticePeriod) {
+        setSelectedNoticePeriod(String(updatedEmployee.noticePeriod.requiredDays));
+      }
       setToast({ message: `Resignation status updated to: ${action === 'REQUEST_INFO' ? 'More Info Requested' : action.toLowerCase()}`, type: 'success' });
+      if (onRefreshResignations) {
+        onRefreshResignations();
+      }
     } catch (err) {
       setToast({ message: err.message || 'Failed to process resignation', type: 'error' });
     } finally {
@@ -59,13 +76,65 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
     }
   };
 
+  const handleNoticePeriodChange = async (newVal) => {
+    setSelectedNoticePeriod(newVal);
+    setIsProcessing(true);
+    try {
+      const updatedEmployee = await processResignation(employeeId, 'UPDATE_NOTICE_PERIOD', '', newVal);
+      setEmployee(updatedEmployee);
+      setToast({ message: `Notice period updated to ${newVal} days successfully`, type: 'success' });
+      if (onRefreshResignations) {
+        onRefreshResignations();
+      }
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to update notice period', type: 'error' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCompleteMeeting = async () => {
+    if (!meeting) return;
+    if (!window.confirm('Are you sure you want to mark this exit video meeting as completed?')) return;
+    try {
+      await deleteMeeting(meeting.id);
+      setMeeting(null);
+      const updatedEmployee = await processResignation(employeeId, 'COMPLETE_MEETING', 'Exit interview video meeting completed. Awaiting final approval.', selectedNoticePeriod);
+      setEmployee(updatedEmployee);
+      setToast({ message: 'Exit video conference completed. Resignation status set to Pending Approval.', type: 'success' });
+      if (onRefreshResignations) {
+        onRefreshResignations();
+      }
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to complete meeting', type: 'error' });
+    }
+  };
+
   useEffect(() => {
     const loadEmployee = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchEmployeeById(employeeId);
-        setEmployee(data);
+        const [empData, meetingsData] = await Promise.all([
+          fetchEmployeeById(employeeId),
+          fetchMeetings().catch(() => [])
+        ]);
+        setEmployee(empData);
+
+        const empMeeting = meetingsData.find(m => String(m.employeeId) === String(employeeId));
+        setMeeting(empMeeting || null);
+
+        if (empData) {
+          const sanitizedName = empData.name ? empData.name.replace(/[^a-zA-Z0-9]/g, '') : 'Employee';
+          setMeetJitsiUrl(`https://meet.jit.si/ResignTrack-Exit-${sanitizedName}-${empData.id}`);
+          setMeetDate(new Date().toISOString().split('T')[0]);
+        }
+
+        if (empData && empData.noticePeriod) {
+          setSelectedNoticePeriod(String(empData.noticePeriod.requiredDays));
+        } else {
+          setSelectedNoticePeriod('30');
+        }
       } catch (err) {
         setError(err.message || 'Employee not found');
       } finally {
@@ -147,11 +216,10 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
   return (
     <div className="pt-24 pb-12 px-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500 text-[#e4e1e9]">
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 p-4 rounded-lg shadow-lg border transition-all duration-300 animate-in fade-in slide-in-from-top-4 flex items-center gap-2 ${
-          toast.type === 'success' 
-            ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+        <div className={`fixed top-6 right-6 z-50 p-4 rounded-lg shadow-lg border transition-all duration-300 animate-in fade-in slide-in-from-top-4 flex items-center gap-2 ${toast.type === 'success'
+            ? 'bg-green-500/10 text-green-400 border-green-500/20'
             : 'bg-red-500/10 text-red-400 border-red-500/20'
-        }`}>
+          }`}>
           <Icon>{toast.type === 'success' ? 'check_circle' : 'error'}</Icon>
           <span className="text-sm font-semibold">{toast.message}</span>
         </div>
@@ -293,11 +361,10 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
 
                       <div className="flex justify-between items-center bg-[#131318] p-3 rounded-lg border border-[#3b494b]/30">
                         <span className="text-xs font-bold text-[#b9cacb] uppercase">Emergency Immediate Release</span>
-                        <span className={`px-2.5 py-1 rounded text-xs font-bold ${
-                          employee.initialResignation.immediateRelease
+                        <span className={`px-2.5 py-1 rounded text-xs font-bold ${employee.initialResignation.immediateRelease
                             ? 'bg-red-500/10 text-red-400 border border-red-500/20'
                             : 'bg-green-500/10 text-green-400 border border-green-500/20'
-                        }`}>
+                          }`}>
                           {employee.initialResignation.immediateRelease ? 'Yes' : 'No'}
                         </span>
                       </div>
@@ -385,58 +452,212 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
           )}
 
           {/* Exit Interview Feedback & Resignation Processing (Resigned or In-Notice only) */}
-          {employee.status !== 'Active' && employee.exitInterview && (
+          {employee.status !== 'Active' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Exit Interview & Feedback Card */}
-              <div className="bg-[#1f1f24] p-6 rounded-xl border border-[#3b494b]/50">
-                <h3 className="text-lg font-bold text-[#00dbe9] border-b border-[#3b494b]/30 pb-3 mb-4 flex items-center gap-2">
-                  <Icon className="text-[#00dbe9]">forum</Icon>
-                  Exit Interview & Feedback
-                </h3>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-[#131318] p-3 rounded-lg border border-[#3b494b]">
-                      <span className="text-xs text-[#b9cacb] block mb-1">Exit Rating</span>
-                      <span className="text-lg font-bold text-[#00dbe9]">{employee.exitInterview.rating}/10</span>
+              {employee.exitInterview && ['Exit Interview Submitted', 'Awaiting Approval', 'Approved'].includes(employee.resignationStatus) ? (
+                <div className="bg-[#1f1f24] p-6 rounded-xl border border-[#3b494b]/50">
+                  <h3 className="text-lg font-bold text-[#00dbe9] border-b border-[#3b494b]/30 pb-3 mb-4 flex items-center gap-2">
+                    <Icon className="text-[#00dbe9]">forum</Icon>
+                    Exit Interview & Feedback
+                  </h3>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="bg-[#131318] p-3 rounded-lg border border-[#3b494b]">
+                        <span className="text-xs text-[#b9cacb] block mb-1">Exit Rating</span>
+                        <span className="text-lg font-bold text-[#00dbe9]">{employee.exitInterview.rating}/10</span>
+                      </div>
+                      <div className="bg-[#131318] p-3 rounded-lg border border-[#3b494b]">
+                        <span className="text-xs text-[#b9cacb] block mb-1">Interview Date</span>
+                        <span className="text-lg font-bold text-[#00dbe9]">{employee.exitInterview.date || 'N/A'}</span>
+                      </div>
                     </div>
-                    <div className="bg-[#131318] p-3 rounded-lg border border-[#3b494b]">
-                      <span className="text-xs text-[#b9cacb] block mb-1">Interview Date</span>
-                      <span className="text-lg font-bold text-[#00dbe9]">{employee.exitInterview.date || 'N/A'}</span>
-                    </div>
-                  </div>
 
-
-
-                  {employee.exitInterview.qa && employee.exitInterview.qa.length > 0 && (() => {
-                    const half = Math.ceil(employee.exitInterview.qa.length / 2);
-                    const firstCol = employee.exitInterview.qa.slice(0, half);
-                    const secondCol = employee.exitInterview.qa.slice(half);
-                    return (
-                      <div className="space-y-4 border-t border-[#3b494b]/20 pt-4">
-                        <span className="text-xs font-bold text-[#b9cacb] block uppercase">Responses</span>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                          <div className="space-y-4">
-                            {firstCol.map((qa, index) => (
-                              <div key={index} className="space-y-1">
-                                <p className="text-xs text-[#00dbe9] font-semibold">{qa.question}</p>
-                                <p className="text-sm font-medium">{qa.answer}</p>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="space-y-4">
-                            {secondCol.map((qa, index) => (
-                              <div key={index} className="space-y-1">
-                                <p className="text-xs text-[#00dbe9] font-semibold">{qa.question}</p>
-                                <p className="text-sm font-medium">{qa.answer}</p>
-                              </div>
-                            ))}
+                    {meeting && meeting.jitsiUrl ? (
+                      <div className="bg-[#00dbe9]/5 border border-[#00dbe9]/20 p-4 rounded-lg flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <Icon className="text-[#00dbe9] text-[20px] animate-pulse">videocam</Icon>
+                          <div>
+                            <p className="text-xs font-bold text-[#e4e1e9]">Exit Video Call Scheduled</p>
+                            <p className="text-[10px] text-[#b9cacb]">{meeting.date} at {meeting.timeSlot}</p>
                           </div>
                         </div>
+                        <div className="flex gap-2 w-full">
+                          <a
+                            href={meeting.jitsiUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-2 bg-[#00dbe9] text-[#131318] hover:opacity-90 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-[#00dbe9]/20"
+                          >
+                            <Icon className="text-[16px]">video_call</Icon>
+                            Join Meeting
+                          </a>
+                          <button
+                            onClick={handleCompleteMeeting}
+                            className="flex-1 py-2 bg-[#2a292f] border border-[#3b494b] text-green-400 hover:bg-[#33fb0a]/10 hover:border-[#33fb0a]/30 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <Icon className="text-[16px]">check_circle</Icon>
+                            Complete
+                          </button>
+                        </div>
                       </div>
-                    );
-                  })()}
+                    ) : (
+                      employee.resignationStatus === 'Exit Interview Submitted' && (
+                        <div className="bg-[#00dbe9]/5 border border-[#00dbe9]/20 p-4 rounded-lg flex flex-col gap-3">
+                          <div className="flex items-center gap-2">
+                            <Icon className="text-[#00dbe9] text-[20px]">videocam</Icon>
+                            <div>
+                              <p className="text-xs font-bold text-[#e4e1e9]">Schedule Final Meeting</p>
+                              <p className="text-[10px] text-[#b9cacb]">Set up Jitsi meeting for final offboarding discussion</p>
+                            </div>
+                          </div>
+
+                          {showScheduleForm ? (
+                            <div className="space-y-3 mt-2 border-t border-[#3b494b]/30 pt-3 text-left">
+                              <div className="space-y-3">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Date</label>
+                                  <input
+                                    type="date"
+                                    value={meetDate}
+                                    onChange={(e) => setMeetDate(e.target.value)}
+                                    className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-2.5 py-1.5 text-[#e4e1e9] text-xs focus:outline-none focus:border-[#00dbe9]"
+                                    required
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Time Slot</label>
+                                  <div className="flex items-center gap-1.5">
+                                    <select
+                                      value={meetHour}
+                                      onChange={(e) => setMeetHour(e.target.value)}
+                                      className="flex-1 bg-[#131318] border border-[#3b494b] rounded-lg px-2 py-1.5 text-[#e4e1e9] text-xs focus:outline-none focus:border-[#00dbe9]"
+                                      required
+                                    >
+                                      {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                                        <option key={h} value={String(h).padStart(2, '0')}>{h}</option>
+                                      ))}
+                                    </select>
+                                    <span className="text-[#b9cacb] font-bold">:</span>
+                                    <select
+                                      value={meetMinute}
+                                      onChange={(e) => setMeetMinute(e.target.value)}
+                                      className="flex-1 bg-[#131318] border border-[#3b494b] rounded-lg px-2 py-1.5 text-[#e4e1e9] text-xs focus:outline-none focus:border-[#00dbe9]"
+                                      required
+                                    >
+                                      {['00', '15', '30', '45'].map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={meetPeriod}
+                                      onChange={(e) => setMeetPeriod(e.target.value)}
+                                      className="flex-1 bg-[#131318] border border-[#3b494b] rounded-lg px-2 py-1.5 text-[#e4e1e9] text-xs focus:outline-none focus:border-[#00dbe9]"
+                                      required
+                                    >
+                                      <option value="AM">AM</option>
+                                      <option value="PM">PM</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-[#b9cacb] uppercase block">Jitsi URL</label>
+                                <input
+                                  type="text"
+                                  value={meetJitsiUrl}
+                                  onChange={(e) => setMeetJitsiUrl(e.target.value)}
+                                  className="w-full bg-[#131318] border border-[#3b494b] rounded-lg px-2.5 py-1.5 text-[#e4e1e9] text-xs focus:outline-none focus:border-[#00dbe9]"
+                                  required
+                                />
+                              </div>
+                              <div className="flex gap-2 pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowScheduleForm(false)}
+                                  className="flex-1 py-1.5 bg-[#2a292f] border border-[#3b494b] text-[#b9cacb] hover:bg-[#3b494b]/30 font-bold text-xs rounded-lg transition-all"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isScheduling}
+                                  onClick={async () => {
+                                    setIsScheduling(true);
+                                    try {
+                                      await createMeeting({
+                                        employeeId: employee.id,
+                                        date: meetDate,
+                                        timeSlot: `${meetHour}:${meetMinute} ${meetPeriod}`,
+                                        jitsiUrl: meetJitsiUrl
+                                      });
+                                      setRetryTrigger(p => p + 1);
+                                      setShowScheduleForm(false);
+                                      setToast({ message: 'Exit meeting scheduled successfully!', type: 'success' });
+                                    } catch (err) {
+                                      setToast({ message: err.message || 'Failed to schedule meeting', type: 'error' });
+                                    } finally {
+                                      setIsScheduling(false);
+                                    }
+                                  }}
+                                  className="flex-1 py-1.5 bg-[#00dbe9] text-[#131318] hover:opacity-90 font-bold text-xs rounded-lg transition-all"
+                                >
+                                  {isScheduling ? 'Scheduling...' : 'Save Meeting'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setShowScheduleForm(true)}
+                              className="w-full py-2 bg-[#00dbe9]/10 border border-[#00dbe9]/20 text-[#00dbe9] hover:bg-[#00dbe9] hover:text-[#131318] font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-[#00dbe9]/10"
+                            >
+                              <Icon className="text-[16px]">schedule</Icon>
+                              Schedule Meeting
+                            </button>
+                          )}
+                        </div>
+                      )
+                    )}
+
+
+
+                    {employee.exitInterview.qa && employee.exitInterview.qa.length > 0 && (() => {
+                      const half = Math.ceil(employee.exitInterview.qa.length / 2);
+                      const firstCol = employee.exitInterview.qa.slice(0, half);
+                      const secondCol = employee.exitInterview.qa.slice(half);
+                      return (
+                        <div className="space-y-4 border-t border-[#3b494b]/20 pt-4">
+                          <span className="text-xs font-bold text-[#b9cacb] block uppercase">Responses</span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                            <div className="space-y-4">
+                              {firstCol.map((qa, index) => (
+                                <div key={index} className="space-y-1">
+                                  <p className="text-xs text-[#00dbe9] font-semibold">{qa.question}</p>
+                                  <p className="text-sm font-medium">{qa.answer}</p>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="space-y-4">
+                              {secondCol.map((qa, index) => (
+                                <div key={index} className="space-y-1">
+                                  <p className="text-xs text-[#00dbe9] font-semibold">{qa.question}</p>
+                                  <p className="text-sm font-medium">{qa.answer}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-[#1f1f24] p-6 rounded-xl border border-[#3b494b]/50 flex flex-col items-center justify-center text-center py-12">
+                  <Icon className="text-[#b9cacb] text-4xl opacity-50 mb-2">forum</Icon>
+                  <h4 className="text-base font-bold text-[#e4e1e9]">Exit Interview Pending</h4>
+                  <p className="text-xs text-[#b9cacb] mt-1 max-w-[240px] mx-auto">The employee has not yet completed and submitted the exit interview form.</p>
+                </div>
+              )}
 
               {/* Resignation Processing Card */}
               <div className="bg-[#1f1f24] p-6 rounded-xl border border-[#3b494b]/50 flex flex-col justify-between">
@@ -445,19 +666,37 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
                     <Icon className="text-[#00dbe9]">gavel</Icon>
                     Resignation Status & Actions
                   </h3>
-                  
+
                   <div className="space-y-4">
                     {/* Status Indicator */}
                     <div className="bg-[#131318] p-3 rounded-lg border border-[#3b494b] flex justify-between items-center">
                       <span className="text-xs text-[#b9cacb] uppercase font-bold">Current Phase</span>
-                      <span className={`px-2.5 py-1 rounded text-xs font-bold ${
-                        employee.resignationStatus === 'Approved' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                        employee.resignationStatus === 'Rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                        employee.resignationStatus === 'More Info Requested' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                        'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                      }`}>
-                        {employee.resignationStatus || 'Pending'}
-                      </span>
+                      {(() => {
+                        let phaseText = employee.resignationStatus || 'Pending';
+                        let pillClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+
+                        if (employee.resignationStatus === 'Exit Interview Submitted') {
+                          phaseText = 'Final Meeting';
+                        } else if (employee.resignationStatus === 'Approved') {
+                          if (employee.status === 'Resigned') {
+                            phaseText = 'Resigned';
+                            pillClass = 'bg-red-500/10 text-red-400 border border-red-500/20';
+                          } else {
+                            phaseText = 'Waiting to complete notice period';
+                            pillClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                          }
+                        } else if (employee.resignationStatus === 'Rejected') {
+                          pillClass = 'bg-red-500/10 text-red-400 border border-red-500/20';
+                        } else if (employee.resignationStatus === 'More Info Requested') {
+                          pillClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                        }
+
+                        return (
+                          <span className={`px-2.5 py-1 rounded text-xs font-bold ${pillClass}`}>
+                            {phaseText}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Remarks Input */}
@@ -475,50 +714,149 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
                         className="w-full h-32 bg-[#131318] text-[#e4e1e9] text-sm p-3 rounded-lg border border-[#3b494b] focus:outline-none focus:border-[#00dbe9] resize-none disabled:opacity-50 transition-colors"
                       />
                     </div>
+
+                    {/* Notice Period Configuration */}
+                    <div className="space-y-3 pt-2 border-t border-[#3b494b]/30">
+                      <h4 className="text-xs font-bold text-[#00dbe9] uppercase tracking-wider">Notice Period Configuration</h4>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-[#b9cacb] uppercase">Notice Period Selector</label>
+                        <select
+                          value={selectedNoticePeriod}
+                          onChange={(e) => handleNoticePeriodChange(e.target.value)}
+                          disabled={isProcessing || ['Approved', 'Rejected'].includes(employee.resignationStatus)}
+                          className="w-full bg-[#131318] text-[#e4e1e9] text-sm p-3 rounded-lg border border-[#3b494b] focus:outline-none focus:border-[#00dbe9] disabled:opacity-50 transition-colors"
+                        >
+                          <option value="15">15 days</option>
+                          <option value="30">30 days</option>
+                          <option value="45">45 days</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-[#b9cacb] uppercase block">Proposed Last Working Day</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={employee.initialResignation?.proposedLastWorkingDay || 'N/A'}
+                          className="w-full bg-[#131318] text-[#76777d] text-sm p-3 rounded-lg border border-[#3b494b]/50 outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* Actions Panel */}
                 {employee.status !== 'Resigned' && !['Approved', 'Rejected'].includes(employee.resignationStatus) && (
                   <div className="mt-6 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    {employee.resignationStatus === 'Pending HR Review' ? (
                       <button
-                        onClick={() => handleProcessResignation('APPROVE')}
-                        disabled={isProcessing || ['Approved', 'Rejected'].includes(employee.resignationStatus)}
-                        className="w-full py-2.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 font-bold text-sm rounded-lg border border-green-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                        onClick={() => handleProcessResignation('INITIATE_INTERVIEW')}
+                        disabled={isProcessing}
+                        className="w-full py-3 bg-[#00dbe9] text-[#131318] hover:opacity-90 font-bold text-sm rounded-lg flex items-center justify-center gap-2 transition-all shadow-md shadow-[#00dbe9]/20"
                       >
-                        {isProcessing && processingAction === 'APPROVE' ? (
+                        {isProcessing && processingAction === 'INITIATE_INTERVIEW' ? (
                           <Icon className="animate-spin text-sm">sync</Icon>
                         ) : (
-                          <Icon className="text-sm">check_circle</Icon>
+                          <Icon className="text-sm">assignment_turned_in</Icon>
                         )}
-                        Approve
+                        Initiate Exit Interview
                       </button>
+                    ) : (
+                      <>
+                        {employee.initialResignation?.immediateRelease && (
+                          <button
+                            onClick={() => handleProcessResignation('EMERGENCY_RELEASE')}
+                            disabled={isProcessing}
+                            className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold text-sm rounded-lg flex items-center justify-center gap-2 transition-all shadow-md shadow-red-500/20 mb-3"
+                          >
+                            {isProcessing && processingAction === 'EMERGENCY_RELEASE' ? (
+                              <Icon className="animate-spin text-sm">sync</Icon>
+                            ) : (
+                              <Icon className="text-sm">bolt</Icon>
+                            )}
+                            Complete Resignation (Emergency Release)
+                          </button>
+                        )}
+                        {!allTasksCompleted && (
+                          <div className="text-xs text-[#ffb4ab] font-medium bg-[#ffb4ab]/10 border border-[#ffb4ab]/20 p-2.5 rounded-lg flex items-center gap-1.5 mb-2">
+                            <Icon className="text-sm">warning</Icon>
+                            Exit checklist must be completed before approval.
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={() => handleProcessResignation('APPROVE')}
+                            disabled={isProcessing || ['Approved', 'Rejected'].includes(employee.resignationStatus) || !allTasksCompleted}
+                            className="w-full py-2.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 font-bold text-sm rounded-lg border border-green-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={!allTasksCompleted ? "All exit checklist tasks must be completed before approval" : "Approve Resignation"}
+                          >
+                            {isProcessing && processingAction === 'APPROVE' ? (
+                              <Icon className="animate-spin text-sm">sync</Icon>
+                            ) : (
+                              <Icon className="text-sm">check_circle</Icon>
+                            )}
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleProcessResignation('REJECT')}
+                            disabled={isProcessing || ['Approved', 'Rejected'].includes(employee.resignationStatus)}
+                            className="w-full py-2.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 font-bold text-sm rounded-lg border border-red-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                          >
+                            {isProcessing && processingAction === 'REJECT' ? (
+                              <Icon className="animate-spin text-sm">sync</Icon>
+                            ) : (
+                              <Icon className="text-sm">cancel</Icon>
+                            )}
+                            Reject
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {employee.resignationStatus === 'Pending HR Review' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => handleProcessResignation('REJECT')}
+                          disabled={isProcessing}
+                          className="w-full py-2.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 font-bold text-sm rounded-lg border border-red-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                        >
+                          {isProcessing && processingAction === 'REJECT' ? (
+                            <Icon className="animate-spin text-sm">sync</Icon>
+                          ) : (
+                            <Icon className="text-sm">cancel</Icon>
+                          )}
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleProcessResignation('REQUEST_INFO')}
+                          disabled={isProcessing}
+                          className="w-full py-2.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-bold text-sm rounded-lg border border-amber-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                        >
+                          {isProcessing && processingAction === 'REQUEST_INFO' ? (
+                            <Icon className="animate-spin text-sm">sync</Icon>
+                          ) : (
+                            <Icon className="text-sm">info</Icon>
+                          )}
+                          Request Info
+                        </button>
+                      </div>
+                    )}
+
+                    {employee.resignationStatus !== 'Pending HR Review' && (
                       <button
-                        onClick={() => handleProcessResignation('REJECT')}
+                        onClick={() => handleProcessResignation('REQUEST_INFO')}
                         disabled={isProcessing || ['Approved', 'Rejected'].includes(employee.resignationStatus)}
-                        className="w-full py-2.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 font-bold text-sm rounded-lg border border-red-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                        className="w-full py-2.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-bold text-sm rounded-lg border border-amber-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                       >
-                        {isProcessing && processingAction === 'REJECT' ? (
+                        {isProcessing && processingAction === 'REQUEST_INFO' ? (
                           <Icon className="animate-spin text-sm">sync</Icon>
                         ) : (
-                          <Icon className="text-sm">cancel</Icon>
+                          <Icon className="text-sm">info</Icon>
                         )}
-                        Reject
+                        Request More Info
                       </button>
-                    </div>
-                    <button
-                      onClick={() => handleProcessResignation('REQUEST_INFO')}
-                      disabled={isProcessing || ['Approved', 'Rejected'].includes(employee.resignationStatus)}
-                      className="w-full py-2.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-bold text-sm rounded-lg border border-amber-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                    >
-                      {isProcessing && processingAction === 'REQUEST_INFO' ? (
-                        <Icon className="animate-spin text-sm">sync</Icon>
-                      ) : (
-                        <Icon className="text-sm">info</Icon>
-                      )}
-                      Request More Info
-                    </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -569,11 +907,10 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
 
                   <div className="flex justify-between items-center bg-[#131318] p-3 rounded-lg border border-[#3b494b]/30">
                     <span className="text-xs font-bold text-[#b9cacb] uppercase">Emergency Immediate Release</span>
-                    <span className={`px-2.5 py-1 rounded text-xs font-bold ${
-                      employee.initialResignation.immediateRelease
+                    <span className={`px-2.5 py-1 rounded text-xs font-bold ${employee.initialResignation.immediateRelease
                         ? 'bg-red-500/10 text-red-400 border border-red-500/20'
                         : 'bg-green-500/10 text-green-400 border border-green-500/20'
-                    }`}>
+                      }`}>
                       {employee.initialResignation.immediateRelease ? 'Yes' : 'No'}
                     </span>
                   </div>
@@ -593,6 +930,20 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
                             {employee.initialResignation.emergencyRemarks}
                           </p>
                         </div>
+                      )}
+                      {employee.status !== 'Resigned' && !['Approved', 'Rejected'].includes(employee.resignationStatus) && (
+                        <button
+                          onClick={() => handleProcessResignation('EMERGENCY_RELEASE')}
+                          disabled={isProcessing}
+                          className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 transition-all shadow-md shadow-red-500/20 mt-3"
+                        >
+                          {isProcessing && processingAction === 'EMERGENCY_RELEASE' ? (
+                            <Icon className="animate-spin text-sm">sync</Icon>
+                          ) : (
+                            <Icon className="text-sm">bolt</Icon>
+                          )}
+                          Complete Resignation (Emergency Release)
+                        </button>
                       )}
                     </>
                   )}
@@ -616,9 +967,19 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
 
             {/* Assigned Assets */}
             <div className="bg-[#1f1f24] p-6 rounded-xl border border-[#3b494b]/50">
-              <h3 className="text-lg font-bold text-[#00dbe9] border-b border-[#3b494b]/30 pb-3 mb-4 flex items-center gap-2">
-                <Icon className="text-[#00dbe9]">inventory_2</Icon>
-                Assigned Assets
+              <h3 className="text-lg font-bold text-[#00dbe9] border-b border-[#3b494b]/30 pb-3 mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="text-[#00dbe9]">inventory_2</Icon>
+                  Assigned Assets
+                </div>
+                {setActiveTab && (
+                  <button
+                    onClick={() => setActiveTab('Assets')}
+                    className="text-xs text-[#00dbe9] hover:underline flex items-center gap-1 font-bold"
+                  >
+                    Manage Assets <Icon className="text-sm">arrow_forward</Icon>
+                  </button>
+                )}
               </h3>
               {employee.assets.length === 0 ? (
                 <p className="text-sm text-[#b9cacb] italic">No assets assigned in inventory.</p>
@@ -661,11 +1022,10 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab }) {
                   {employee.tasks.map((task, idx) => (
                     <div key={idx} className="p-3 bg-[#131318] rounded-lg border border-[#3b494b] flex justify-between items-center">
                       <span className="text-sm font-semibold">{task.name}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        task.status.toLowerCase() === 'completed' ? 'bg-[#33fb0a]/10 text-[#33fb0a] border border-[#33fb0a]/20' : 
-                        task.status.toLowerCase() === 'scheduled' ? 'bg-[#00dbe9]/10 text-[#00dbe9] border border-[#00dbe9]/20' :
-                        'bg-[#ffb4ab]/10 text-[#ffb4ab] border border-[#ffb4ab]/20'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.status.toLowerCase() === 'completed' ? 'bg-[#33fb0a]/10 text-[#33fb0a] border border-[#33fb0a]/20' :
+                          task.status.toLowerCase() === 'scheduled' ? 'bg-[#00dbe9]/10 text-[#00dbe9] border border-[#00dbe9]/20' :
+                            'bg-[#ffb4ab]/10 text-[#ffb4ab] border border-[#ffb4ab]/20'
+                        }`}>
                         {task.status}
                       </span>
                     </div>

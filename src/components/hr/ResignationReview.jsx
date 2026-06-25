@@ -190,21 +190,31 @@ export default function ResignationReview({
               <h3 className="text-xl font-semibold">Approval Workflow</h3>
             </div>
             <div className="space-y-6">
-              {activeResignation.status === 'Pending' ? (
-                <div className="flex justify-end gap-4">
-                  <button 
-                    onClick={handleRejectResignation} 
-                    className="px-6 py-4 border border-[#ffb4ab] text-[#ffb4ab] text-xs font-medium rounded-lg hover:bg-[#ffb4ab]/10 transition-all"
-                  >
-                    Reject Resignation
-                  </button>
-                  <button 
-                    onClick={() => setShowApprovalModal(true)} 
-                    className="px-6 py-4 bg-[#00dbe9] text-[#131318] text-xs font-bold rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
-                  >
-                    <Icon className="text-[18px]">check_circle</Icon>
-                    Approve Resignation
-                  </button>
+              {['Pending', 'Awaiting Approval'].includes(activeResignation.status) ? (
+                <div className="flex flex-col items-end gap-4 w-full">
+                  {(completedCount < totalCount || totalCount === 0) && (
+                    <div className="text-xs text-[#ffb4ab] font-medium bg-[#ffb4ab]/10 border border-[#ffb4ab]/20 p-2.5 rounded-lg flex items-center gap-1.5">
+                      <Icon className="text-sm">warning</Icon>
+                      Exit checklist must be completed before approval.
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-4 w-full">
+                    <button 
+                      onClick={handleRejectResignation} 
+                      className="px-6 py-4 border border-[#ffb4ab] text-[#ffb4ab] text-xs font-medium rounded-lg hover:bg-[#ffb4ab]/10 transition-all"
+                    >
+                      Reject Resignation
+                    </button>
+                    <button 
+                      disabled={completedCount < totalCount || totalCount === 0}
+                      onClick={() => setShowApprovalModal(true)} 
+                      className="px-6 py-4 bg-[#00dbe9] text-[#131318] text-xs font-bold rounded-lg hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={completedCount < totalCount || totalCount === 0 ? "All exit checklist tasks must be completed before approval" : "Approve Resignation"}
+                    >
+                      <Icon className="text-[18px]">check_circle</Icon>
+                      Approve Resignation
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-[#b9cacb] italic">This resignation is {activeResignation.status}. No workflow actions are pending.</p>

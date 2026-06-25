@@ -17,7 +17,7 @@ const getAvatarUrl = (email) => {
   return defaultImages[email] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDp0nZai5ic4toQDoBtjQMrJAivFopGgH1jUAiVLTq_f5BYy-h3wFlaFs5J4UbwnVCrsJq0botwTQJjwp2C0nmfYGZpAAnIKNtQ_HinjPlMfoJOSLS5vNH7Wc0SMgDlN0uVBX5eT3FMlBiMriatn2t8niS9dANx1nnFgG1AzsHoO3ZvLZbYgqqmAqe2jJm7v3pvGBo30hvCx4XR-p1rPBIfyAsZe5-lyFSEwHyGjg7Xcmy8jUsgVV4Uq4Wr5V4YV4ff4T5Qha0HGRM';
 };
 
-export default function TaskManagement() {
+export default function TaskManagement({ preselectedEmployeeId, setActiveTab }) {
   const [employees, setEmployees] = useState([]);
   const [resignations, setResignations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,13 @@ export default function TaskManagement() {
   const [checklistTasks, setChecklistTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [taskCounts, setTaskCounts] = useState({}); // { resignationId: { completed: X, total: Y } }
+
+  const handleCloseModal = () => {
+    setSelectedEmployee(null);
+    if (preselectedEmployeeId && setActiveTab) {
+      setActiveTab('Directory');
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -61,6 +68,15 @@ export default function TaskManagement() {
     };
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (preselectedEmployeeId && employees.length > 0) {
+      const emp = employees.find(e => e.id.toString() === preselectedEmployeeId.toString());
+      if (emp) {
+        setSelectedEmployee(emp);
+      }
+    }
+  }, [preselectedEmployeeId, employees]);
 
   useEffect(() => {
     if (selectedEmployee) {
@@ -186,7 +202,7 @@ export default function TaskManagement() {
                 <span className="text-xs font-bold bg-[#00dbe9]/10 text-[#00dbe9] border border-[#00dbe9]/20 px-3 py-1.5 rounded-full">
                   {checklistTasks.filter(t => t.status === 'Completed').length} of {checklistTasks.length} Completed
                 </span>
-                <button onClick={() => setSelectedEmployee(null)} className="text-[#b9cacb] hover:text-[#ffb4ab] transition-colors">
+                <button onClick={handleCloseModal} className="text-[#b9cacb] hover:text-[#ffb4ab] transition-colors">
                   <Icon>close</Icon>
                 </button>
               </div>

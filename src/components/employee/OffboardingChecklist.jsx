@@ -6,6 +6,7 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
   const noticePeriod = noticePeriodData ? noticePeriodData.notice_period : 30;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showExitCallModal, setShowExitCallModal] = useState(false);
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('');
   const [reason, setReason] = useState('');
@@ -66,7 +67,7 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
     }
   };
 
-  const isSubmitted = resignation && (resignation.status === 'Pending' || resignation.status === 'Approved');
+  const isSubmitted = resignation && resignation.status !== 'Withdrawn';
 
   const calculateDaysLeft = () => {
     if (!isSubmitted) return 0;
@@ -200,18 +201,39 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
 
          {/* Exit Interview Card */}
          {!isExitInterviewCompleted && (
-            <div className="lg:col-span-7 bg-[#00dbe9] text-white rounded-2xl p-8 relative overflow-hidden group shadow-md border border-[#00dbe9]">
+            <div className={`lg:col-span-7 rounded-2xl p-8 relative overflow-hidden group border ${
+               resignation?.status === 'Pending HR Review'
+                  ? 'bg-[#1f1f24] text-[#76777d] border-[#3b494b]/50'
+                  : 'bg-[#00dbe9] text-white border-[#00dbe9]'
+            }`}>
                <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
                      <h3 className="text-2xl font-bold mb-3 tracking-tight">Exit Interview</h3>
-                     <p className="text-sm opacity-90 max-w-md mb-8 leading-relaxed">Your feedback helps us improve. Please complete the confidential exit survey before your final day.</p>
+                     {resignation?.status === 'Pending HR Review' ? (
+                        <p className="text-sm text-[#b9cacb] max-w-md mb-8 leading-relaxed">
+                           The exit interview has not been initiated by HR yet. Once HR initiates it, you will be able to complete the confidential survey.
+                        </p>
+                     ) : (
+                        <p className="text-sm opacity-90 max-w-md mb-8 leading-relaxed">
+                           Your feedback helps us improve. Please complete the confidential exit survey before your final day.
+                        </p>
+                     )}
                   </div>
-                  <button 
-                     onClick={onStartInterview}
-                     className="inline-flex items-center justify-center bg-[#1f1f24] text-[#00dbe9] px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#2a292f] active:scale-95 transition-all w-fit group-hover:px-8 shadow-sm"
-                  >
-                     Start Form <Icon className="ml-2 text-[20px]">arrow_forward</Icon>
-                  </button>
+                  {resignation?.status === 'Pending HR Review' ? (
+                     <button 
+                        disabled
+                        className="inline-flex items-center justify-center bg-[#2a292f] text-[#76777d]/60 px-6 py-3.5 rounded-xl font-bold text-sm cursor-not-allowed w-fit border border-[#3b494b]/40 shadow-sm"
+                     >
+                        Locked (Pending HR Initiation) <Icon className="ml-2 text-[20px]">lock</Icon>
+                     </button>
+                  ) : (
+                     <button 
+                        onClick={onStartInterview}
+                        className="inline-flex items-center justify-center bg-[#1f1f24] text-[#00dbe9] px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#2a292f] active:scale-95 transition-all w-fit group-hover:px-8 shadow-sm"
+                     >
+                        Start Form <Icon className="ml-2 text-[20px]">arrow_forward</Icon>
+                     </button>
+                  )}
                </div>
                {/* Abstract Background Shape */}
                <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-[#1f1f24] opacity-10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
@@ -228,6 +250,7 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
                       onClick={() => {
                          if (latestMeeting && latestMeeting.jitsiUrl) {
                             window.open(latestMeeting.jitsiUrl, '_blank');
+                            setShowExitCallModal(true);
                          } else {
                             alert("No exit consultation meeting has been scheduled yet.");
                          }
@@ -373,6 +396,28 @@ export default function OffboardingChecklist({ resignation, onStartInterview, no
           <Icon className="text-[#00dbe9]">check_circle</Icon>
           <span>{successMessage}</span>
         </div>
+      )}
+
+      {showExitCallModal && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131318]/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="relative w-full max-w-md rounded-2xl border border-[#3b494b] bg-[#1f1f24] p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 text-center">
+               <div className="mx-auto w-12 h-12 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full flex items-center justify-center">
+                  <Icon className="text-[24px]">check_circle</Icon>
+               </div>
+               <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-[#e4e1e9]">Video Conference Update</h3>
+                  <p className="text-sm text-[#b9cacb] leading-relaxed">
+                     Your resignation process is going well. The next step is completing your exit checklist. After that, your resignation process will be completed.
+                  </p>
+               </div>
+               <button
+                  onClick={() => setShowExitCallModal(false)}
+                  className="w-full py-2.5 bg-[#00dbe9] text-[#131318] hover:opacity-90 active:scale-95 font-bold text-sm rounded-xl transition-all shadow-md"
+               >
+                  Got it
+               </button>
+            </div>
+         </div>
       )}
     </div>
   );

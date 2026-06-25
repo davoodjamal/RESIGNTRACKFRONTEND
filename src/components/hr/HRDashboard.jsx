@@ -17,9 +17,28 @@ const getAvatarUrl = (email) => {
   return defaultImages[email] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDp0nZai5ic4toQDoBtjQMrJAivFopGgH1jUAiVLTq_f5BYy-h3wFlaFs5J4UbwnVCrsJq0botwTQJjwp2C0nmfYGZpAAnIKNtQ_HinjPlMfoJOSLS5vNH7Wc0SMgDlN0uVBX5eT3FMlBiMriatn2t8niS9dANx1nnFgG1AzsHoO3ZvLZbYgqqmAqe2jJm7v3pvGBo30hvCx4XR-p1rPBIfyAsZe5-lyFSEwHyGjg7Xcmy8jUsgVV4Uq4Wr5V4YV4ff4T5Qha0HGRM';
 };
 
-const getResignationStatusColor = (status) => {
-  const normStatus = status ? status.toLowerCase() : '';
+const getDisplayStatus = (req) => {
+  if (req.status === 'Approved') {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isEmergency = req.exitFeedback?.immediate_release || req.exitFeedback?.emergencyReleaseRequested;
+    if (isEmergency || (req.relievingDate && req.relievingDate <= todayStr)) {
+      return 'Resigned';
+    }
+    return 'Waiting to complete notice period';
+  }
+  if (req.status === 'Exit Interview Submitted') {
+    return 'Final Meeting';
+  }
+  return req.status;
+};
+
+const getResignationStatusColor = (statusText) => {
+  const normStatus = statusText ? statusText.toLowerCase() : '';
   switch (normStatus) {
+    case 'resigned':
+      return 'bg-red-500/10 text-red-400 border border-red-500/20';
+    case 'waiting to complete notice period':
+      return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
     case 'pending review':
     case 'pending':
       return 'bg-[#fff3cd] text-[#856404] border-[#ffeeba]';
@@ -31,6 +50,11 @@ const getResignationStatusColor = (status) => {
     case 'escalated':
     case 'rejected':
       return 'bg-[#f8d7da] text-[#721c24] border-[#f5c6cb]';
+    case 'exit interview submitted':
+    case 'final meeting':
+      return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+    case 'awaiting approval':
+      return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
     case 'withdrawn':
     case 'withdraw':
       return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -48,8 +72,10 @@ export default function HRDashboard({ resignations, setActiveTab, onViewEmployee
     today.setHours(0,0,0,0);
 
     (resignations || []).forEach(res => {
-      if (res.status === 'Pending' || res.status === 'More Info Requested') {
+      console.log('NoticeTracker Debug: Processing res:', res.id, res.name, res.status, res.relievingDate);
+      if (['Pending', 'More Info Requested', 'Pending HR Review', 'Exit Interview Pending', 'Exit Interview Submitted', 'Awaiting Approval', 'Approved', 'Awaiting Exit Interview'].includes(res.status)) {
         const relievingDate = res.relievingDate ? new Date(res.relievingDate) : null;
+        console.log('NoticeTracker Debug: relievingDate parsed:', relievingDate);
         if (!relievingDate) return;
         relievingDate.setHours(0,0,0,0);
 
@@ -58,14 +84,16 @@ export default function HRDashboard({ resignations, setActiveTab, onViewEmployee
 
         const timeDiff = relievingDate.getTime() - today.getTime();
         const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+        console.log('NoticeTracker Debug: daysLeft:', daysLeft);
 
         const totalDuration = Math.max(1, Math.ceil((relievingDate.getTime() - submissionDate.getTime()) / (1000 * 3600 * 24)));
         const elapsed = Math.max(0, totalDuration - daysLeft);
         const progress = Math.min(100, Math.round((elapsed / totalDuration) * 100));
 
         const emp = employees.find(e => e.email === res.email);
-        const role = emp ? (emp.designation || 'Employee') : (res.department || 'Employee');
-        const empId = emp ? emp.id : null;
+        if (!emp || emp.status === 'Resigned') return;
+        const role = emp.designation || 'Employee';
+        const empId = emp.id;
 
         let color = 'bg-[#00dbe9]';
         let textColor = 'text-[#00dbe9]';
@@ -226,9 +254,14 @@ export default function HRDashboard({ resignations, setActiveTab, onViewEmployee
                         <p className="text-sm font-semibold text-[#e4e1e9]">{req.name}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-xs text-[#b9cacb]">Submitted a resignation request</p>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getResignationStatusColor(req.status)}`}>
-                            {req.status}
-                          </span>
+                          {(() => {
+                            const dispStatus = getDisplayStatus(req);
+                            return (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getResignationStatusColor(dispStatus)}`}>
+                                {dispStatus}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -282,7 +315,7 @@ export default function HRDashboard({ resignations, setActiveTab, onViewEmployee
                   </div>
                   <div className="text-right">
                     <p className={`${employee.text} font-semibold text-sm`}>{employee.days}</p>
-                    <div className="w-12 h-1 bg-[#1f1f24] rounded-full mt-1 overflow-hidden">
+                    <div className="w-12 h-1 bg-[#3b494b]/40 rounded-full mt-1 overflow-hidden">
                       <div className={`h-full ${employee.color}`} style={{ width: employee.progress }}></div>
                     </div>
                   </div>

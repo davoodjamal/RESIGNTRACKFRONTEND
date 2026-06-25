@@ -29,7 +29,8 @@ export default function HRPortal({
   onDecideRescheduleRequest,
   notifications,
   onMarkNotificationRead,
-  onMarkAllNotificationsRead
+  onMarkAllNotificationsRead,
+  onRefreshResignations
 }) {
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -70,6 +71,7 @@ export default function HRPortal({
               employeeId={selectedEmployeeId}
               onBack={() => setSelectedEmployeeId(null)}
               setActiveTab={setActiveTab}
+              onRefreshResignations={onRefreshResignations}
             />
           );
         }
@@ -102,10 +104,11 @@ export default function HRPortal({
             resignations={resignations}
             onUpdateStatus={onUpdateStatus}
             onDecideRescheduleRequest={onDecideRescheduleRequest}
+            preselectedEmployeeId={selectedEmployeeId}
           />
         );
       case 'Tasks':
-        return <TaskManagement />;
+        return <TaskManagement preselectedEmployeeId={selectedEmployeeId} setActiveTab={setActiveTab} />;
       case 'AttritionReports':
         return <AttritionReports />;
       case 'ExEmployeeDirectory':

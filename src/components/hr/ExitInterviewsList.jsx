@@ -37,12 +37,16 @@ const getReasonColor = (reason) => {
   return exitReasonColors[reason] || 'bg-[#505f76]';
 };
 
-export default function ExitInterviewsList({ resignations, onUpdateStatus, onDecideRescheduleRequest }) {
+export default function ExitInterviewsList({ resignations, onUpdateStatus, onDecideRescheduleRequest, preselectedEmployeeId }) {
   const [exitInterviews, setExitInterviews] = useState([]);
   const [latestInterview, setLatestInterview] = useState(null);
   const [analytics, setAnalytics] = useState({ totalExits: 0, reasons: [] });
   const [meetings, setMeetings] = useState([]);
   const [employees, setEmployees] = useState([]);
+
+  const preselectedMeeting = preselectedEmployeeId
+    ? meetings.find(m => String(m.employeeId) === String(preselectedEmployeeId))
+    : null;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -131,12 +135,12 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
 
   useEffect(() => {
     if (editingId) return;
-    
+
     if (!meetingEmployeeId) {
       setMeetingJitsiUrl('https://meet.jit.si/');
       return;
     }
-    
+
     const selectedEmp = employees.find(emp => emp && emp.id && emp.id.toString() === meetingEmployeeId.toString());
     if (selectedEmp) {
       const sanitizedName = selectedEmp.name ? selectedEmp.name.replace(/[^a-zA-Z0-9]/g, '') : 'Employee';
@@ -153,7 +157,7 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
       setMeetingError('Please select an employee.');
       return;
     }
-    
+
     const todayStr = new Date().toISOString().split('T')[0];
     if (meetingDate < todayStr) {
       setMeetingError('Cannot schedule meetings in the past.');
@@ -296,6 +300,32 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
         <Icon className="text-[16px]">chevron_right</Icon>
         <span className="text-[#00dbe9] font-semibold">Exit Interview</span>
       </nav>
+
+      {/* Preselected Employee Meeting Lobby Banner */}
+      {preselectedMeeting && (
+        <div className="mb-8 bg-[#00dbe9]/10 border border-[#00dbe9]/30 rounded-xl p-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4 animate-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-[#00dbe9]/20 p-3.5 rounded-xl border border-[#00dbe9]/30 text-[#00dbe9]">
+              <Icon className="text-[28px] animate-pulse">video_call</Icon>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-[#e4e1e9]">Scheduled Meeting Lobby for {preselectedMeeting.employeeName}</h3>
+              <p className="text-xs text-[#b9cacb] mt-0.5">Scheduled Date: {preselectedMeeting.date} at {preselectedMeeting.timeSlot}</p>
+            </div>
+          </div>
+          <div className="flex gap-3 w-full md:w-auto">
+            <a
+              href={preselectedMeeting.jitsiUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 md:flex-none px-6 py-3 bg-[#00dbe9] text-[#131318] font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-[#00dbe9]/20"
+            >
+              <Icon className="text-[20px]">video_call</Icon>
+              Join Video Session
+            </a>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-4 py-3 rounded-lg text-sm mb-6 flex items-center gap-2">
@@ -713,8 +743,8 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
                                   type="button"
                                   onClick={() => setTempHour(hStr)}
                                   className={`py-1 text-xs font-semibold rounded-lg transition-all ${isSelected
-                                      ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
-                                      : 'text-[#e4e1e9] hover:bg-[#2a292f]'
+                                    ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
+                                    : 'text-[#e4e1e9] hover:bg-[#2a292f]'
                                     }`}
                                 >
                                   {hStr}
@@ -733,8 +763,8 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
                                   type="button"
                                   onClick={() => setTempMinute(m)}
                                   className={`py-1 text-xs font-semibold rounded-lg transition-all ${isSelected
-                                      ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
-                                      : 'text-[#e4e1e9] hover:bg-[#2a292f]'
+                                    ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
+                                    : 'text-[#e4e1e9] hover:bg-[#2a292f]'
                                     }`}
                                 >
                                   {m}
@@ -753,8 +783,8 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
                                   type="button"
                                   onClick={() => setTempAmPm(ampm)}
                                   className={`py-2 text-xs font-semibold rounded-lg transition-all ${isSelected
-                                      ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
-                                      : 'text-[#e4e1e9] hover:bg-[#2a292f]'
+                                    ? 'bg-[#00dbe9] text-[#131318] font-bold shadow-[0_0_8px_rgba(0,219,233,0.3)]'
+                                    : 'text-[#e4e1e9] hover:bg-[#2a292f]'
                                     }`}
                                 >
                                   {ampm}

@@ -32,7 +32,7 @@ export default function EmployeePortal({
   onMarkAllNotificationsRead
 }) {
   const employeeResignation = resignations.find(r => r.email === user.email);
-  const hasActiveResignation = !!(employeeResignation && ['Awaiting Exit Interview', 'Pending', 'Approved', 'More Info Requested'].includes(employeeResignation.status));
+  const hasActiveResignation = !!(employeeResignation && ['Awaiting Exit Interview', 'Pending', 'Approved', 'More Info Requested', 'Pending HR Review', 'Exit Interview Pending', 'Exit Interview Submitted', 'Awaiting Approval'].includes(employeeResignation.status));
   const [activeTab, setActiveTab] = useState(hasActiveResignation ? 'dashboard' : 'resignation');
   const [profileView, setProfileView] = useState('profile');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -70,6 +70,7 @@ export default function EmployeePortal({
               checklistTasks={checklistTasks}
               onWithdraw={() => onWithdrawResignation(employeeResignation.id)}
               onReapply={() => setActiveTab('resignation')}
+              onStartExitInterview={() => setActiveTab('exit-interview')}
             />
           );
         }
@@ -95,7 +96,7 @@ export default function EmployeePortal({
             systemSettings={systemSettings} 
             onSubmitResignation={(data) => {
               onSubmitResignation(data);
-              setActiveTab('exit-interview'); // Redirect to exit interview on submit
+              setActiveTab('dashboard');
             }} 
           />
         );
@@ -163,7 +164,7 @@ export default function EmployeePortal({
          onOpenProfile={() => setProfileView('profile')}
          onOpenHelp={() => setIsHelpOpen(true)}
          onOpenLogout={() => setIsLogoutOpen(true)}
-         hasActiveResignation={!!(employeeResignation && ['Awaiting Exit Interview', 'Pending', 'Approved', 'More Info Requested'].includes(employeeResignation.status))}
+         hasActiveResignation={!!(employeeResignation && ['Awaiting Exit Interview', 'Pending', 'Approved', 'More Info Requested', 'Pending HR Review', 'Exit Interview Pending', 'Exit Interview Submitted', 'Awaiting Approval'].includes(employeeResignation.status))}
       />
       
       <Header 

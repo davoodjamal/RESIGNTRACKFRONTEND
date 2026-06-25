@@ -457,10 +457,10 @@ export async function searchGlobal(query) {
 }
 
 // ─── Resignation Processing ─────────────────────────────
-export async function processResignation(employeeId, action, remarks) {
+export async function processResignation(employeeId, action, remarks, noticePeriod) {
   return request(`${API_BASE}/resignation/process/`, {
     method: 'PUT',
-    body: JSON.stringify({ employeeId, action, remarks }),
+    body: JSON.stringify({ employeeId, action, remarks, noticePeriod }),
   });
 }
 

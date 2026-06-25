@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from '../Icon';
 import { fetchDraftResignation, saveDraftResignation, submitResignation } from '../../api';
 
@@ -28,6 +28,18 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
   const [validationErrors, setValidationErrors] = useState({});
   const [submissionStatus, setSubmissionStatus] = useState('idle');
   const [toast, setToast] = useState(null);
+
+  const dateInputRef = useRef(null);
+
+  const getMinDateStr = () => {
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() + 15);
+    const year = minDate.getFullYear();
+    const month = String(minDate.getMonth() + 1).padStart(2, '0');
+    const day = String(minDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const minDateStr = getMinDateStr();
 
   // Load draft on mount
   useEffect(() => {
@@ -64,14 +76,15 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
     if (!relievingDate) {
       errorsList.relievingDate = 'Proposed last working day is required.';
     } else {
-      const localToday = new Date();
-      const year = localToday.getFullYear();
-      const month = String(localToday.getMonth() + 1).padStart(2, '0');
-      const day = String(localToday.getDate()).padStart(2, '0');
-      const todayStr = `${year}-${month}-${day}`;
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() + 15);
+      const year = minDate.getFullYear();
+      const month = String(minDate.getMonth() + 1).padStart(2, '0');
+      const day = String(minDate.getDate()).padStart(2, '0');
+      const minDateStrVal = `${year}-${month}-${day}`;
       
-      if (relievingDate < todayStr) {
-        errorsList.relievingDate = 'Last working day cannot be before the current date.';
+      if (relievingDate < minDateStrVal) {
+        errorsList.relievingDate = 'Proposed last working day must be at least 15 days from today.';
       }
     }
     setValidationErrors(errorsList);
@@ -137,7 +150,7 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
       };
       const result = await submitResignation(payload);
       setSubmissionStatus('success');
-      setToast('Resignation submitted successfully.');
+      setToast('Resignation submitted successfully. HR will review your request.');
       setTimeout(() => {
         const completeResignation = {
           id: result.id,
@@ -148,7 +161,7 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
           submissionDate: new Date().toISOString().split('T')[0],
           relievingDate: relievingDate,
           comments: comments,
-          status: 'Awaiting Exit Interview',
+          status: 'Pending HR Review',
           exitFeedback: {
             cultureRating: 0,
             compensationRating: 0,
@@ -316,17 +329,24 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
                   <div className="space-y-2">
                      <label className="text-xs font-bold text-[#00dbe9] uppercase tracking-wider">Proposed Last Working Day *</label>
                      <div className="relative">
-                        <Icon className="absolute right-4 top-1/2 -translate-y-1/2 text-[#76777d]">calendar_today</Icon>
+                        <Icon 
+                           onClick={() => dateInputRef.current?.showPicker()}
+                           className="absolute right-4 top-1/2 -translate-y-1/2 text-[#76777d] cursor-pointer pointer-events-auto z-10"
+                        >
+                           calendar_today
+                        </Icon>
                         <input 
+                           ref={dateInputRef}
                            required
                            type="date"
+                           min={minDateStr}
                            value={relievingDate}
                            onChange={(e) => setRelievingDate(e.target.value)}
                            className="w-full bg-[#2a292f] border border-[#3b494b] rounded-xl p-4 text-sm font-semibold focus:ring-2 focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none transition-all appearance-none"
                         />
                      </div>
                      {validationErrors.relievingDate && <p className="text-xs text-[#ffb4ab] mt-1">{validationErrors.relievingDate}</p>}
-                     <p className="text-[11px] font-medium text-[#b9cacb] italic mt-2">Note: Standard notice period is {systemSettings.noticePeriod} days.</p>
+                     <p className="text-[11px] font-medium text-[#b9cacb] italic mt-2">Note: Standard notice period is 15 days.</p>
                   </div>
                </div>
             </section>

@@ -391,6 +391,19 @@ function App() {
     }
   };
 
+  const handleRefreshResignations = async () => {
+    try {
+      const [resData, usersData] = await Promise.all([
+        fetchResignations(),
+        fetchUsers()
+      ]);
+      setResignations(resData);
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Failed to refresh resignations:', err);
+    }
+  };
+
   if (!user) {
     return <Login onLoginSuccess={handleLoginSuccess} users={users} />;
   }
@@ -468,6 +481,7 @@ function App() {
         notifications={notifications}
         onMarkNotificationRead={handleMarkNotificationRead}
         onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+        onRefreshResignations={handleRefreshResignations}
       />
     );
   }

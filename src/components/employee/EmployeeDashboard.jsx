@@ -1,11 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '../Icon';
+import { fetchMeetings } from '../../api';
 
-export default function EmployeeDashboard({ user, resignation, onWithdraw, systemSettings, noticePeriodData, checklistTasks, onReapply }) {
+export default function EmployeeDashboard({ user, resignation, onWithdraw, systemSettings, noticePeriodData, checklistTasks, onReapply, onStartExitInterview }) {
    const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+   const [showExitCallModal, setShowExitCallModal] = useState(false);
+   const [meetings, setMeetings] = useState([]);
+   useEffect(() => {
+      fetchMeetings()
+         .then(setMeetings)
+         .catch(err => console.error("Failed to load meetings:", err));
+   }, []);
+
+   const employeeMeeting = meetings?.find(m => m.employeeEmail === user.email);
    const exitInterviewTask = checklistTasks?.find(t => t.title.toLowerCase().includes('exit interview'));
-   const isExitInterviewCompleted = exitInterviewTask?.status === 'Completed' || resignation?.exitFeedback?.roleRating > 0;
+   const isExitInterviewCompleted = exitInterviewTask?.status === 'Completed' || resignation?.exitFeedback?.roleRating > 0 || resignation?.status === 'Exit Interview Submitted' || resignation?.status === 'Approved';
    const hrRemarks = resignation?.exitFeedback?.hr_remarks || resignation?.exit_feedback?.hr_remarks || '';
+   const exitInterviewData = {
+      initiatedBy: resignation?.status === 'Exit Interview Pending' ? 'HR' : 'Pending',
+      status: resignation?.status === 'Exit Interview Pending' ? 'Scheduled' : 'Pending Schedule'
+   };
 
    const noticePeriod = noticePeriodData ? noticePeriodData.notice_period : (systemSettings?.noticePeriod || 30);
 
@@ -27,7 +41,78 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
    const progressPercentage = noticePeriodData && noticePeriodData.has_active_resignation
       ? noticePeriodData.progress_percentage
       : Math.max(0, Math.min(100, Math.round(((noticePeriod - daysLeft) / noticePeriod) * 100)));
-   const transitionProgress = resignation?.status === 'Approved' ? 66 : resignation?.status === 'Pending' ? 33 : 0;
+
+   const steps = [];
+
+   // Step 1: Submitted
+   steps.push({
+      label: 'Submitted',
+      date: resignation?.submissionDate || 'Waiting',
+      status: resignation ? 'completed' : 'upcoming',
+      icon: resignation ? 'check' : 'check'
+   });
+
+   // Step 2: Under Review
+   const isUnderReviewActive = ['Pending HR Review', 'Pending'].includes(resignation?.status);
+   const isUnderReviewCompleted = ['Exit Interview Pending', 'Exit Interview Submitted', 'Awaiting Approval', 'Approved'].includes(resignation?.status);
+   steps.push({
+      label: 'Under Review',
+      date: isUnderReviewCompleted ? 'Completed' : (isUnderReviewActive ? 'In Progress' : 'Waiting'),
+      status: isUnderReviewCompleted ? 'completed' : (isUnderReviewActive ? 'active' : 'upcoming'),
+      icon: isUnderReviewCompleted ? 'check' : 'pending'
+   });
+
+   // Step 3: Exit Interview
+   const isExitInterviewCompletedState = ['Exit Interview Submitted', 'Awaiting Approval', 'Approved'].includes(resignation?.status);
+   const isExitInterviewActive = resignation?.status === 'Exit Interview Pending';
+   steps.push({
+      label: 'Exit Interview',
+      date: isExitInterviewCompletedState ? 'Completed' : (isExitInterviewActive ? 'Initiated' : 'Waiting'),
+      status: isExitInterviewCompletedState ? 'completed' : (isExitInterviewActive ? 'active' : 'upcoming'),
+      icon: isExitInterviewCompletedState ? 'check' : 'forum'
+   });
+
+   // Step 4: Final Meeting
+   const isFinalMeetingCompleted = ['Awaiting Approval', 'Approved'].includes(resignation?.status);
+   const isFinalMeetingActive = resignation?.status === 'Exit Interview Submitted' && employeeMeeting;
+   steps.push({
+      label: 'Final Meeting',
+      date: isFinalMeetingCompleted ? 'Completed' : (isFinalMeetingActive ? 'Scheduled' : 'Waiting'),
+      status: isFinalMeetingCompleted ? 'completed' : (isFinalMeetingActive ? 'active' : 'upcoming'),
+      icon: isFinalMeetingCompleted ? 'check' : 'videocam'
+   });
+
+   // Step 5: Approved
+   const isApproved = resignation?.status === 'Approved';
+   const isAwaitingApproval = resignation?.status === 'Awaiting Approval';
+   steps.push({
+      label: 'Approved',
+      date: isApproved ? 'Approved' : (isAwaitingApproval ? 'Awaiting Approval' : 'Waiting'),
+      status: isApproved ? 'completed' : (isAwaitingApproval ? 'active' : 'upcoming'),
+      icon: 'thumb_up'
+   });
+
+   // Step 6: Last Day
+   steps.push({
+      label: 'Last Day',
+      date: resignation?.relievingDate || 'Waiting',
+      status: 'upcoming',
+      icon: 'event_available'
+   });
+
+   const completedStepsCount = steps.filter(s => s.status === 'completed').length;
+   const totalProgressSteps = steps.length - 1;
+   const transitionProgress = Math.round((completedStepsCount / totalProgressSteps) * 100);
+
+   // Find the index of the last completed step to stop the progress line exactly there
+   let lastCompletedIdx = 0;
+   steps.forEach((step, idx) => {
+      if (step.status === 'completed') {
+         lastCompletedIdx = idx;
+      }
+   });
+   const progressPercentageLine = (lastCompletedIdx / totalProgressSteps) * 100;
+   const halfStepPercent = 100 / (2 * steps.length);
 
    const emergencyReleaseRequested =
       resignation?.exitFeedback?.emergencyReleaseRequested ||
@@ -36,13 +121,6 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
       resignation?.emergencyReleaseRequested ||
       resignation?.immediate_release ||
       resignation?.immediateRelease;
-
-   const steps = [
-      { label: 'Submitted', date: resignation?.submissionDate, status: 'completed', icon: 'check' },
-      { label: 'Under Review', date: 'In Progress', status: resignation?.status === 'Pending' ? 'active' : 'completed', icon: resignation?.status === 'Pending' ? 'pending' : 'check' },
-      { label: 'Approved', date: resignation?.status === 'Approved' ? 'Approved' : 'Waiting', status: resignation?.status === 'Approved' ? 'active' : 'upcoming', icon: 'thumb_up' },
-      { label: 'Last Day', date: resignation?.relievingDate, status: 'upcoming', icon: 'event_available' }
-   ];
 
    return (
       <div className="max-w-7xl mx-auto px-6 py-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
@@ -71,11 +149,11 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      )}
                      <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${resignation.status === 'Approved' ? 'bg-[#d8e2ff] text-[#001a42]' : resignation.status === 'Withdrawn' ? 'bg-[#76777d] text-white' : 'bg-[#ffe082] text-[#5a4300]'
                         }`}>
-                        {resignation.status}
+                        {resignation.status === 'Exit Interview Submitted' ? 'Final Meeting' : resignation.status === 'Approved' ? 'Approval' : resignation.status === 'Awaiting Approval' ? 'Awaiting Approval' : resignation.status}
                      </span>
                   </div>
                </div>
-                {resignation.status === 'More Info Requested' && (
+               {resignation.status === 'More Info Requested' && (
                   <div className="mb-8 bg-[#ffe082]/10 rounded-2xl border border-[#ffe082]/20 p-6 animate-in fade-in slide-in-from-top-4 duration-300">
                      <div className="flex items-start gap-4">
                         <div className="bg-[#ffe082]/25 p-3 rounded-xl border border-[#ffe082]/30 text-[#ffe082]">
@@ -126,7 +204,7 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                <div className="mt-12 mb-4 relative">
                   <div className="flex justify-between relative z-10">
                      {steps.map((step, idx) => (
-                        <div key={idx} className="flex flex-col items-center gap-4 w-1/4">
+                        <div key={idx} className="flex flex-col items-center gap-4" style={{ width: `${100 / steps.length}%` }}>
                            <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-sm ${step.status === 'completed' ? 'bg-[#00dbe9] text-white' :
                               step.status === 'active' ? 'bg-[#1f1f24] border-4 border-[#00dbe9] text-[#00dbe9] animate-pulse' :
                                  'bg-[#e0e3e5] text-[#76777d]'
@@ -141,8 +219,8 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      ))}
                   </div>
                   {/* Progress Line */}
-                  <div className="absolute top-7 left-[12.5%] right-[12.5%] h-1.5 bg-[#d8dadc] -z-0 rounded-full">
-                     <div className="h-full bg-[#00dbe9] rounded-full transition-all duration-1000 ease-out" style={{ width: resignation.status === 'Approved' ? '66.66%' : '33.33%' }}></div>
+                  <div className="absolute top-7 h-1.5 bg-[#d8dadc] -z-0 rounded-full" style={{ left: `${halfStepPercent}%`, right: `${halfStepPercent}%` }}>
+                     <div className="h-full bg-[#00dbe9] rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPercentageLine}%` }}></div>
                   </div>
                </div>
 
@@ -279,18 +357,96 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      Key Milestones
                   </h3>
                   <div className="space-y-8">
-                     {!isExitInterviewCompleted && (
+                     {/* Under Review Milestone */}
+                     <div className="flex items-start gap-5">
+                        <div className={`p-4 rounded-xl border ${['Exit Interview Pending', 'Exit Interview Submitted', 'Approved'].includes(resignation?.status) ? 'bg-[#00dbe9]/10 border-[#00dbe9]/30 text-[#00dbe9]' : (['Pending HR Review', 'Pending'].includes(resignation?.status) ? 'bg-[#2a292f] border-[#00dbe9] text-[#00dbe9] animate-pulse' : 'bg-[#2a292f] border-[#3b494b] text-[#b9cacb]')}`}>
+                           <Icon className="text-[28px]">rate_review</Icon>
+                        </div>
+                        <div className="pt-1">
+                           <p className="text-base font-bold text-[#e4e1e9]">Under Review</p>
+                           {['Exit Interview Pending', 'Exit Interview Submitted', 'Approved'].includes(resignation?.status) ? (
+                              <p className="text-sm font-medium text-[#b9cacb] mt-1">Completed • HR reviewed request</p>
+                           ) : (['Pending HR Review', 'Pending'].includes(resignation?.status) ? (
+                              <p className="text-sm font-medium text-[#ffe082] mt-1">In Progress • Awaiting HR review</p>
+                           ) : (
+                              <p className="text-sm font-medium text-[#b9cacb] mt-1">Pending Submission</p>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* Exit Interview Milestone */}
+                     <div className="flex items-start gap-5">
+                        <div className={`p-4 rounded-xl border ${isExitInterviewCompleted ? 'bg-[#00dbe9]/10 border-[#00dbe9]/30 text-[#00dbe9]' : (exitInterviewData.initiatedBy === 'HR' && exitInterviewData.status === 'Scheduled' ? 'bg-[#2a292f] border-[#00dbe9] text-[#00dbe9] animate-pulse' : 'bg-[#2a292f] border-[#3b494b] text-[#b9cacb]')}`}>
+                           <Icon className="text-[28px]">diversity_3</Icon>
+                        </div>
+                        <div className="pt-1">
+                           <p className="text-base font-bold text-[#e4e1e9]">Exit Interview</p>
+                           {isExitInterviewCompleted ? (
+                              <p className="text-sm font-medium text-[#b9cacb] mt-1">Completed • Responses submitted</p>
+                           ) : (exitInterviewData.initiatedBy === 'HR' && exitInterviewData.status === 'Scheduled' ? (
+                              <>
+                                 <p className="text-sm font-medium text-[#00dbe9] mt-1">Scheduled • 30 mins</p>
+                                 <button
+                                    onClick={onStartExitInterview}
+                                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 border border-[#00dbe9] text-[#00dbe9] hover:bg-[#00dbe9]/10 font-bold text-xs rounded-lg transition-all"
+                                 >
+                                    Start Interview <Icon className="text-[14px]">arrow_forward</Icon>
+                                 </button>
+                              </>
+                           ) : (
+                              <>
+                                 <p className="text-sm font-medium text-[#b9cacb] mt-1">Pending Schedule • 30 mins</p>
+                                 <p className="text-sm text-[#00dbe9] mt-1 font-bold">with HR Department</p>
+                              </>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* Final Meeting Milestone */}
+                     {isFinalMeetingCompleted ? (
                         <div className="flex items-start gap-5">
-                           <div className="bg-[#2a292f] p-4 rounded-xl border border-[#3b494b]">
-                              <Icon className="text-[#00dbe9] text-[28px]">diversity_3</Icon>
+                           <div className="bg-[#00dbe9]/10 border border-[#00dbe9]/30 text-[#00dbe9] p-4 rounded-xl">
+                              <Icon className="text-[28px]">check_circle</Icon>
                            </div>
                            <div className="pt-1">
-                              <p className="text-base font-bold text-[#e4e1e9]">Exit Interview</p>
-                              <p className="text-sm font-medium text-[#b9cacb] mt-1">Pending Schedule • 30 mins</p>
-                              <p className="text-sm text-[#00dbe9] mt-1 font-bold">with HR Department</p>
+                              <p className="text-base font-bold text-[#e4e1e9]">Final Meeting</p>
+                              <p className="text-sm font-medium text-[#b9cacb] mt-1">Completed • Meeting was done successfully</p>
+                           </div>
+                        </div>
+                     ) : isExitInterviewCompleted && employeeMeeting ? (
+                        <div className="flex items-start gap-5">
+                           <div className="bg-[#2a292f] p-4 rounded-xl border border-[#00dbe9] text-[#00dbe9] animate-pulse">
+                              <Icon className="text-[28px]">videocam</Icon>
+                           </div>
+                           <div className="pt-1">
+                              <p className="text-base font-bold text-[#e4e1e9]">Final Meeting</p>
+                              <p className="text-sm font-medium text-[#00dbe9] mt-1">Scheduled • {employeeMeeting.date} at {employeeMeeting.timeSlot}</p>
+                              {employeeMeeting.jitsiUrl && (
+                                 <a
+                                    href={employeeMeeting.jitsiUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setShowExitCallModal(true)}
+                                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#00dbe9] text-[#131318] hover:opacity-90 font-bold text-xs rounded-lg transition-all shadow-md shadow-[#00dbe9]/20"
+                                 >
+                                    Join Video Meeting <Icon className="text-[14px]">video_call</Icon>
+                                 </a>
+                              )}
+                           </div>
+                        </div>
+                     ) : (
+                        <div className="flex items-start gap-5">
+                           <div className="bg-[#2a292f] p-4 rounded-xl border border-[#3b494b] text-[#b9cacb]">
+                              <Icon className="text-[28px]">videocam</Icon>
+                           </div>
+                           <div className="pt-1">
+                              <p className="text-base font-bold text-[#e4e1e9]">Final Meeting</p>
+                              <p className="text-sm font-medium text-[#b9cacb] mt-1">HR will schedule the video conference</p>
                            </div>
                         </div>
                      )}
+
+                     {/* Last Working Day Milestone */}
                      <div className="flex items-start gap-5">
                         <div className="bg-[#ffb4ab] p-4 rounded-xl border border-[#ffb4ab]/30">
                            <Icon className="text-[#ffb4ab] text-[28px]">meeting_room</Icon>
@@ -305,6 +461,31 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                </div>
             </div>
          </div>
+
+         {showExitCallModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131318]/80 backdrop-blur-sm animate-in fade-in duration-200">
+               <div className="relative w-full max-w-md rounded-2xl border border-[#3b494b] bg-[#1f1f24] p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 text-center">
+                  <div className="mx-auto w-12 h-12 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full flex items-center justify-center">
+                     <Icon className="text-[24px]">check_circle</Icon>
+                  </div>
+                  <div className="space-y-2">
+                     <h3 className="text-lg font-bold text-[#e4e1e9]">Video Conference Update</h3>
+                     <p className="text-sm text-[#b9cacb] leading-relaxed">
+                        Your resignation process is going well. The next step is completing your exit checklist. After that, your resignation process will be completed.
+                     </p>
+                  </div>
+                  <button
+                     onClick={() => {
+                        setShowExitCallModal(false);
+                        setMeetingCompletedLocally(true);
+                     }}
+                     className="w-full py-2.5 bg-[#00dbe9] text-[#131318] hover:opacity-90 active:scale-95 font-bold text-sm rounded-xl transition-all shadow-md"
+                  >
+                     Got it
+                  </button>
+               </div>
+            </div>
+         )}
       </div>
    );
 }
