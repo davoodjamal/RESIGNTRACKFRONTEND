@@ -299,7 +299,7 @@ function Header({ user, isNotificationsOpen, setIsNotificationsOpen, notificatio
   const unreadCount = notifications ? notifications.filter(n => !n.is_read).length : 0;
 
   return (
-    <header className="fixed top-0 right-0 left-0 lg:left-64 h-16 z-10 bg-[#131318] border-b border-[#3b494b]/60 flex justify-between items-center px-6 backdrop-blur-md bg-opacity-90">
+    <header className="fixed top-0 right-0 left-0 lg:left-64 h-16 z-40 bg-[#131318] border-b border-[#3b494b]/60 flex justify-between items-center px-6 backdrop-blur-md bg-opacity-90">
       <div className="flex items-center gap-4 flex-1">
         <div className="relative w-full max-w-md hidden md:block" onClick={(e) => e.stopPropagation()}>
            <Icon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b9cacb] text-[20px]">search</Icon>

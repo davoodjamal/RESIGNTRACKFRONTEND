@@ -294,27 +294,27 @@ export default function AssetManagement({ user, resignation, assets: propAssets,
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        <div className="lg:col-span-2 bg-[#00dbe9] text-white p-8 rounded-2xl flex flex-col items-start gap-8 relative overflow-hidden shadow-md">
+        <div className="lg:col-span-2 bg-[#1f1f24] p-8 rounded-2xl flex flex-col items-start gap-8 relative overflow-hidden shadow-sm border border-[#3b494b]">
           <div className="relative z-10 w-full">
-            <h3 className="text-2xl font-bold mb-3 tracking-tight">Offboarding Procedure</h3>
-            <p className="text-sm opacity-90 max-w-xl mb-8 leading-relaxed">
+            <h3 className="text-2xl font-bold mb-3 tracking-tight text-[#00dbe9]">Offboarding Procedure</h3>
+            <p className="text-sm max-w-xl mb-8 leading-relaxed text-[#b9cacb]">
               All company assets must be returned by your last working day ({resignation?.relievingDate || 'TBD'}). Please ensure all data is backed up and your accounts are signed out from the hardware.
             </p>
             <div className="flex flex-wrap gap-4 w-full">
-              <div className="bg-[#1f1f24]/10 backdrop-blur-md p-4 rounded-xl flex-1 min-w-[200px] border border-white/20">
-                <Icon className="block mb-2 text-[#88abff] text-[28px]">location_on</Icon>
-                <p className="text-xs font-bold uppercase tracking-wider mb-1">Return Location</p>
-                <p className="text-sm opacity-90 font-medium">IT HUB, 4th Floor, Sector B</p>
+              <div className="bg-[#131318] p-4 rounded-xl flex-1 min-w-[200px] border border-[#3b494b]">
+                <Icon className="block mb-2 text-[#00dbe9] text-[28px]">location_on</Icon>
+                <p className="text-xs font-bold uppercase tracking-wider mb-1 text-[#b9cacb]">Return Location</p>
+                <p className="text-sm font-medium text-[#e4e1e9]">IT HUB, 4th Floor, Sector B</p>
               </div>
-              <div className="bg-[#1f1f24]/10 backdrop-blur-md p-4 rounded-xl flex-1 min-w-[200px] border border-white/20">
-                <Icon className="block mb-2 text-[#88abff] text-[28px]">schedule</Icon>
-                <p className="text-xs font-bold uppercase tracking-wider mb-1">Operating Hours</p>
-                <p className="text-sm opacity-90 font-medium">Mon-Fri: 09:00 - 17:00</p>
+              <div className="bg-[#131318] p-4 rounded-xl flex-1 min-w-[200px] border border-[#3b494b]">
+                <Icon className="block mb-2 text-[#00dbe9] text-[28px]">schedule</Icon>
+                <p className="text-xs font-bold uppercase tracking-wider mb-1 text-[#b9cacb]">Operating Hours</p>
+                <p className="text-sm font-medium text-[#e4e1e9]">Mon-Fri: 09:00 - 17:00</p>
               </div>
             </div>
           </div>
           <div className="hidden lg:block absolute -right-10 -bottom-10 opacity-10">
-            <Icon className="text-[240px]">inventory_2</Icon>
+            <Icon className="text-[240px] text-[#00dbe9]">inventory_2</Icon>
           </div>
         </div>
 

@@ -112,7 +112,7 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                         </div>
                         <div>
                            <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-1">Employee ID</p>
-                           <p className="text-sm font-bold bg-[#2a292f] text-[#00dbe9] px-2 py-1 rounded border border-[#3b494b] w-fit">EF-2019-0482</p>
+                           <p className="text-sm font-bold bg-[#2a292f] text-[#00dbe9] px-2 py-1 rounded border border-[#3b494b] w-fit">EMP-{String(user.id || '').padStart(4, '0')}</p>
                         </div>
                      </div>
                   </div>

@@ -281,6 +281,10 @@ export default function EmployeeDetails({ employeeId, onBack, setActiveTab, onRe
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
+                <label className="text-xs font-bold text-[#b9cacb] block uppercase mb-1">Employee ID</label>
+                <p className="text-sm font-medium">EMP-{String(employee.id || employeeId || '').padStart(4, '0')}</p>
+              </div>
+              <div>
                 <label className="text-xs font-bold text-[#b9cacb] block uppercase mb-1">Email Address</label>
                 <p className="text-sm font-medium">{employee.email}</p>
               </div>

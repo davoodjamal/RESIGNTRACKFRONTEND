@@ -134,6 +134,7 @@ function App() {
         if (profileData) {
           const updatedUser = {
             ...user,
+            id: profileData.id || user.id,
             email: profileData.email || user.email,
             username: profileData.username || user.username,
             role: profileData.role || user.role,
@@ -279,6 +280,7 @@ function App() {
       const updated = await updateProfile(profileData);
       const updatedUser = {
         ...user,
+        id: updated.id || user.id,
         email: updated.email || user.email,
         username: updated.username || user.username,
         fullName: updated.fullName || updated.full_name,

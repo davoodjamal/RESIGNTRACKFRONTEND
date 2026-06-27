@@ -205,7 +205,7 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                   <div className="flex justify-between relative z-10">
                      {steps.map((step, idx) => (
                         <div key={idx} className="flex flex-col items-center gap-4" style={{ width: `${100 / steps.length}%` }}>
-                           <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-sm ${step.status === 'completed' ? 'bg-[#00dbe9] text-white' :
+                           <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-sm ${step.status === 'completed' ? 'bg-[#00dbe9] text-black' :
                               step.status === 'active' ? 'bg-[#1f1f24] border-4 border-[#00dbe9] text-[#00dbe9] animate-pulse' :
                                  'bg-[#e0e3e5] text-[#76777d]'
                               }`}>
@@ -262,18 +262,18 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
             </div>
 
             {/* Notice Period Countdown */}
-            <div className="lg:col-span-4 bg-[#00dbe9] text-white rounded-2xl p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group shadow-md border border-[#00dbe9]">
+            <div className="lg:col-span-4 bg-[#1f1f24] rounded-2xl p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group shadow-sm border border-[#3b494b]">
                <div className="absolute -right-6 -top-6 opacity-10 transform group-hover:scale-110 transition-transform duration-700">
-                  <Icon className="text-[160px]">hourglass_empty</Icon>
+                  <Icon className="text-[160px] text-[#00dbe9]">hourglass_empty</Icon>
                </div>
-               <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 text-[#bec6e0] relative z-10">Notice Period Remaining</p>
-               <div className="text-[80px] font-black leading-none mb-2 relative z-10 tracking-tighter">{daysLeft}</div>
-               <p className="text-2xl font-semibold relative z-10 mb-10 text-[#dae2fd]">Days Left</p>
+               <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 text-[#b9cacb] relative z-10">Notice Period Remaining</p>
+               <div className="text-[80px] font-black leading-none mb-2 relative z-10 tracking-tighter text-[#00dbe9]">{daysLeft}</div>
+               <p className="text-2xl font-semibold relative z-10 mb-10 text-white">Days Left</p>
 
-               <div className="w-full h-2 bg-[#1f1f24]/20 rounded-full overflow-hidden relative z-10">
-                  <div className="h-full bg-[#88abff]" style={{ width: `${progressPercentage}%` }}></div>
+               <div className="w-full h-2 bg-[#131318] rounded-full overflow-hidden relative z-10">
+                  <div className="h-full bg-[#00dbe9]" style={{ width: `${progressPercentage}%` }}></div>
                </div>
-               <p className="mt-6 text-sm font-medium text-white/70 italic relative z-10">Final Day: {resignation.relievingDate}</p>
+               <p className="mt-6 text-sm font-medium text-[#b9cacb] italic relative z-10">Final Day: {resignation.relievingDate}</p>
             </div>
 
             {/* Exit Checklist */}
@@ -449,7 +449,7 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      {/* Last Working Day Milestone */}
                      <div className="flex items-start gap-5">
                         <div className="bg-[#ffb4ab] p-4 rounded-xl border border-[#ffb4ab]/30">
-                           <Icon className="text-[#ffb4ab] text-[28px]">meeting_room</Icon>
+                           <Icon className="text-black text-[28px]">meeting_room</Icon>
                         </div>
                         <div className="pt-1">
                            <p className="text-base font-bold text-[#e4e1e9]">Last Working Day</p>

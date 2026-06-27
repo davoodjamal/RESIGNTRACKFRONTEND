@@ -116,7 +116,7 @@ export default function ExitInterview({ user, resignation, onSave, onSubmit }) {
                </div>
                <div>
                   <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Employee ID</p>
-                  <p className="text-lg font-black text-[#e4e1e9]">EF-2019-0482</p>
+                  <p className="text-lg font-black text-[#e4e1e9]">EMP-{String(user.id || '').padStart(4, '0')}</p>
                </div>
             </div>
             <div className="bg-[#1f1f24] p-6 rounded-2xl shadow-sm border border-[#3b494b] flex items-center gap-4">

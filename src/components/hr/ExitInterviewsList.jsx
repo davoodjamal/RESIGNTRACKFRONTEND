@@ -610,7 +610,7 @@ export default function ExitInterviewsList({ resignations, onUpdateStatus, onDec
                   <div>
                     <h4 className="text-base font-bold text-[#e4e1e9]">{latestInterview.employeeName}</h4>
                     <p className="text-xs text-[#b9cacb]">{latestInterview.designation}</p>
-                    <p className="text-[10px] text-[#b9cacb]/80">ID: {latestInterview.employeeId || 'N/A'}</p>
+                    <p className="text-[10px] text-[#b9cacb]/80">ID: {latestInterview.employeeId ? "EMP-" + String(latestInterview.employeeId).padStart(4, '0') : 'N/A'}</p>
                   </div>
                 </div>
 

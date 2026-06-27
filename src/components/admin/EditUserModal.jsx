@@ -56,7 +56,7 @@ export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigat
     });
   }, [user]);
 
-  const employeeId = user?.employeeId || user?.id || `RT-${(form.email || form.fullName).length.toString().padStart(5, '0')}`;
+  const employeeId = user?.id ? "EMP-" + String(user.id).padStart(4, '0') : "";
   const initials = (form.fullName || 'User').split(' ').map((segment) => segment[0]).join('').toUpperCase().slice(0, 2);
 
   const validateForm = () => {

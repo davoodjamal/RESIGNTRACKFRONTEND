@@ -64,6 +64,7 @@ export async function login(email, password, role) {
     localStorage.setItem('access_token', data.access);
     localStorage.setItem('refresh_token', data.refresh);
     localStorage.setItem('user', JSON.stringify({
+      id: data.id,
       email: data.email,
       username: data.username,
       role: data.role,
