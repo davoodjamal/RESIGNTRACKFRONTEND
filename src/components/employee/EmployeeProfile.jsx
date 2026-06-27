@@ -1,6 +1,22 @@
 import Icon from '../Icon';
 
 export default function EmployeeProfile({ user, onEditProfile }) {
+   const calculateTenure = () => {
+      if (!user?.joinDate) return '0.0 Yrs';
+      const joinDate = new Date(user.joinDate);
+      const today = new Date();
+      const diffTime = today - joinDate;
+      const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365.25);
+      return `${diffYears > 0 ? diffYears.toFixed(1) : '0.0'} Yrs`;
+   };
+
+   const formatJoinDate = (dateStr) => {
+      if (!dateStr) return 'N/A';
+      const date = new Date(dateStr);
+      // Format as "September 14, 2019"
+      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+   };
+
    return (
       <div className="mt-8 p-8 overflow-y-auto custom-scrollbar flex-1 animate-in fade-in slide-in-from-bottom-8 duration-500">
          <div className="max-w-6xl mx-auto space-y-6">
@@ -78,17 +94,12 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                      </div>
                   </div>
 
-                  {/* Employment Metadata */}
                   <div className="bg-[#1f1f24] rounded-2xl p-8 border border-[#3b494b] shadow-sm transition-all hover:shadow-md">
                      <h3 className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-5 border-b border-[#3b494b] pb-2">Lifecycle Stats</h3>
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4">
                         <div className="bg-[#2a292f] p-4 rounded-xl border border-[#3b494b]">
                            <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-1">Tenure</p>
-                           <p className="text-2xl font-black text-[#00dbe9]">4.2 Yrs</p>
-                        </div>
-                        <div className="bg-[#2a292f] p-4 rounded-xl border border-[#3b494b]">
-                           <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-1">Vacation</p>
-                           <p className="text-2xl font-black text-[#00dbe9]">12 Days</p>
+                           <p className="text-2xl font-black text-[#00dbe9]">{calculateTenure()}</p>
                         </div>
                      </div>
                   </div>
@@ -108,7 +119,7 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                         </div>
                         <div>
                            <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-1">Join Date</p>
-                           <p className="text-base font-bold text-[#00dbe9]">September 14, 2019</p>
+                           <p className="text-base font-bold text-[#00dbe9]">{formatJoinDate(user?.joinDate)}</p>
                         </div>
                         <div>
                            <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-1">Employee ID</p>

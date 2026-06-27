@@ -22,6 +22,13 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
    };
 
    const noticePeriod = noticePeriodData ? noticePeriodData.notice_period : (systemSettings?.noticePeriod || 30);
+   const emergencyReleaseRequested =
+      resignation?.exitFeedback?.emergencyReleaseRequested ||
+      resignation?.exitFeedback?.immediate_release ||
+      resignation?.exitFeedback?.immediateRelease ||
+      resignation?.emergencyReleaseRequested ||
+      resignation?.immediate_release ||
+      resignation?.immediateRelease;
 
    const calculateDaysLeft = () => {
       if (noticePeriodData && noticePeriodData.has_active_resignation) {
@@ -93,12 +100,14 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
    });
 
    // Step 6: Last Day
-   steps.push({
-      label: 'Last Day',
-      date: resignation?.relievingDate || 'Waiting',
-      status: 'upcoming',
-      icon: 'event_available'
-   });
+   if (!emergencyReleaseRequested) {
+      steps.push({
+         label: 'Last Day',
+         date: resignation?.relievingDate || 'Waiting',
+         status: 'upcoming',
+         icon: 'event_available'
+      });
+   }
 
    const completedStepsCount = steps.filter(s => s.status === 'completed').length;
    const totalProgressSteps = steps.length - 1;
@@ -113,14 +122,6 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
    });
    const progressPercentageLine = (lastCompletedIdx / totalProgressSteps) * 100;
    const halfStepPercent = 100 / (2 * steps.length);
-
-   const emergencyReleaseRequested =
-      resignation?.exitFeedback?.emergencyReleaseRequested ||
-      resignation?.exitFeedback?.immediate_release ||
-      resignation?.exitFeedback?.immediateRelease ||
-      resignation?.emergencyReleaseRequested ||
-      resignation?.immediate_release ||
-      resignation?.immediateRelease;
 
    return (
       <div className="max-w-7xl mx-auto px-6 py-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
@@ -183,24 +184,42 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      </div>
                   </div>
                )}
-               {resignation.status !== 'Withdrawn' && (
-                  <div className="mb-8 bg-[#172028] rounded-2xl border border-[#3b494b] p-5 shadow-sm">
-                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00dbe9]">Withdraw Submission</p>
-                           <p className="text-sm text-[#b9cacb] mt-2">Withdraw your resignation request and resume the normal dashboard workflow.</p>
-                        </div>
-                        <button
-                           type="button"
-                           onClick={() => setIsWithdrawOpen(true)}
-                           className="inline-flex items-center gap-2 px-6 py-3 border-2 border-[#ffb4ab] text-[#ffb4ab] font-semibold rounded-xl hover:bg-[#ffb4ab]/10 transition-all"
-                        >
-                           <Icon className="text-[20px]">cancel</Icon>
-                           Withdraw Submission
-                        </button>
-                     </div>
-                  </div>
-               )}
+                {resignation.status === 'Approved' ? (
+                   <div className="mb-8 bg-green-500/10 rounded-2xl border border-green-500/20 p-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                      <div className="flex items-center gap-4">
+                         <div className="bg-green-500/20 p-3 rounded-xl border border-green-500/30 text-green-400">
+                            <Icon className="text-[28px]">check_circle</Icon>
+                         </div>
+                         <div>
+                            <h4 className="text-lg font-bold text-green-400 tracking-wide uppercase">Resignation Approved</h4>
+                            <p className="text-sm text-[#b9cacb] mt-1">
+                               {emergencyReleaseRequested
+                                  ? 'You can leave immediately.'
+                                  : 'You Can Leave when completing the Notice Period.'}
+                            </p>
+                         </div>
+                      </div>
+                   </div>
+                ) : (
+                   resignation.status !== 'Withdrawn' && !isExitInterviewCompleted && (
+                      <div className="mb-8 bg-[#172028] rounded-2xl border border-[#3b494b] p-5 shadow-sm">
+                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00dbe9]">Withdraw Submission</p>
+                               <p className="text-sm text-[#b9cacb] mt-2">Withdraw your resignation request and resume the normal dashboard workflow.</p>
+                            </div>
+                            <button
+                               type="button"
+                               onClick={() => setIsWithdrawOpen(true)}
+                               className="inline-flex items-center gap-2 px-6 py-3 border-2 border-[#ffb4ab] text-[#ffb4ab] font-semibold rounded-xl hover:bg-[#ffb4ab]/10 transition-all"
+                            >
+                               <Icon className="text-[20px]">cancel</Icon>
+                               Withdraw Submission
+                            </button>
+                         </div>
+                      </div>
+                   )
+                )}
                <div className="mt-12 mb-4 relative">
                   <div className="flex justify-between relative z-10">
                      {steps.map((step, idx) => (
@@ -447,16 +466,18 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw, syste
                      )}
 
                      {/* Last Working Day Milestone */}
-                     <div className="flex items-start gap-5">
-                        <div className="bg-[#ffb4ab] p-4 rounded-xl border border-[#ffb4ab]/30">
-                           <Icon className="text-black text-[28px]">meeting_room</Icon>
+                     {!emergencyReleaseRequested && (
+                        <div className="flex items-start gap-5">
+                           <div className="bg-[#ffb4ab] p-4 rounded-xl border border-[#ffb4ab]/30">
+                              <Icon className="text-black text-[28px]">meeting_room</Icon>
+                           </div>
+                           <div className="pt-1">
+                              <p className="text-base font-bold text-[#e4e1e9]">Last Working Day</p>
+                              <p className="text-sm font-medium text-[#b9cacb] mt-1">{resignation.relievingDate}</p>
+                              <p className="text-sm text-[#ffb4ab] mt-1 font-bold">Final Handover & Goodbye</p>
+                           </div>
                         </div>
-                        <div className="pt-1">
-                           <p className="text-base font-bold text-[#e4e1e9]">Last Working Day</p>
-                           <p className="text-sm font-medium text-[#b9cacb] mt-1">{resignation.relievingDate}</p>
-                           <p className="text-sm text-[#ffb4ab] mt-1 font-bold">Final Handover & Goodbye</p>
-                        </div>
-                     </div>
+                     )}
                   </div>
                </div>
             </div>

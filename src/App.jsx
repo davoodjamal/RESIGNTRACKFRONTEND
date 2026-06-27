@@ -143,6 +143,7 @@ function App() {
             dob: profileData.dob,
             designation: profileData.designation,
             address: profileData.address,
+            joinDate: profileData.joinDate,
           };
 
           const hasChanged =
@@ -153,7 +154,8 @@ function App() {
             user.phone !== updatedUser.phone ||
             user.dob !== updatedUser.dob ||
             user.designation !== updatedUser.designation ||
-            user.address !== updatedUser.address;
+            user.address !== updatedUser.address ||
+            user.joinDate !== updatedUser.joinDate;
 
           if (hasChanged) {
             setUser(updatedUser);

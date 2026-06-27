@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Icon from '../Icon';
-import { updateUser } from '../../api';
+import { updateUser, updateJoiningDate, getCurrentUser } from '../../api';
 
 const permissionDefs = [
   { id: 'resignations', label: 'Manage Resignations', desc: 'Grant authority to approve or deny exit requests.', defaultOn: true },
@@ -17,6 +17,7 @@ const initialFormState = {
   designation: '',
   address: '',
   role: 'employee',
+  joinDate: '',
 };
 
 export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigateUsers }) {
@@ -33,6 +34,10 @@ export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigat
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isFieldLocked, setIsFieldLocked] = useState(false);
+
+  const currentUser = getCurrentUser();
+  const isAuthorizedAdmin = currentUser && ['admin', 'SuperAdmin', 'SystemAdmin'].includes(currentUser.role);
 
   useEffect(() => {
     setForm({
@@ -44,6 +49,7 @@ export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigat
       designation: user?.designation || user?.jobTitle || '',
       address: user?.address || '',
       role: user?.role || 'employee',
+      joinDate: user?.joinDate || '',
     });
     setShowPassword(false);
 
@@ -88,6 +94,12 @@ export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigat
     setApiError('');
 
     try {
+      if (isAuthorizedAdmin && form.joinDate && form.joinDate !== user?.joinDate) {
+        setIsFieldLocked(true);
+        await updateJoiningDate(user.id, form.joinDate);
+        setIsFieldLocked(false);
+      }
+
       const payload = {
         id: user?.id,
         fullName: form.fullName.trim(),
@@ -150,7 +162,7 @@ export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigat
                     <Icon className="text-[#00dbe9] text-[20px]">badge</Icon>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Work Information</h3>
                   </div>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="flex flex-col gap-6">
                     <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Employee ID</span>
                       <input
@@ -159,7 +171,7 @@ export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigat
                         className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none"
                       />
                     </label>
-                    <label className="flex flex-col gap-2 text-sm text-[#e4e1e9] md:col-span-2">
+                    <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Designation</span>
                       <input
                         type="text"
@@ -171,11 +183,21 @@ export default function EditUserModal({ user, onClose, onRefreshUsers, onNavigat
                     </label>
                     <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Join Date</span>
-                      <input
-                        disabled
-                        value={user?.joinDate || new Date().toLocaleDateString('en-CA')}
-                        className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none"
-                      />
+                      {isAuthorizedAdmin ? (
+                        <input
+                          type="date"
+                          disabled={isFieldLocked || submitting}
+                          value={form.joinDate || ''}
+                          onChange={(event) => setForm({ ...form, joinDate: event.target.value })}
+                          className="rounded-xl border px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30 bg-[#2a292f] border-[#3b494b] disabled:opacity-50"
+                        />
+                      ) : (
+                        <input
+                          disabled
+                          value={form.joinDate || ''}
+                          className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none"
+                        />
+                      )}
                     </label>
                   </div>
                 </section>

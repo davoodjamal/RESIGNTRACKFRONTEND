@@ -73,6 +73,7 @@ export async function login(email, password, role) {
       dob: data.dob,
       designation: data.designation,
       address: data.address,
+      joinDate: data.joinDate,
     }));
   }
   return data;
@@ -116,6 +117,13 @@ export async function updateUser(id, data) {
   return request(`${API_BASE}/users/${id}/`, {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+}
+
+export async function updateJoiningDate(id, date) {
+  return request(`${API_BASE}/v1/admin/employee/${id}/joining-date/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ date }),
   });
 }
 

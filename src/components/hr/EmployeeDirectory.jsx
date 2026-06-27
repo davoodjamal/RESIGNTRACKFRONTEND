@@ -131,7 +131,9 @@ export default function EmployeeDirectory({ onEmployeeClick }) {
               const name = emp.fullName || emp.username;
               const designation = emp.designation || 'Employee';
               const avatar = getAvatarUrl(emp.email);
-              const joinDate = getJoinDate(emp.email, emp.id);
+              const joinDate = emp.joinDate
+                ? new Date(emp.joinDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                : getJoinDate(emp.email, emp.id);
               const statusColor = getStatusColor(emp.status);
 
               return (
