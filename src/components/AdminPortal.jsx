@@ -27,6 +27,7 @@ export default function AdminPortal({
   systemSettings,
   onUpdateSettings,
   users,
+  onRefreshUsers,
   auditLogs,
   onLogout,
   resignations,
@@ -102,7 +103,7 @@ export default function AdminPortal({
         <main className="flex-1 p-8 bg-[#2a292f] overflow-auto">
           {activeTab === 'dashboard' && <AdminDashboard users={users} resignations={resignations} />}
           {activeTab === 'users' && (
-            <UserManagement users={users} onSetActiveTab={setActiveTab} />
+            <UserManagement users={users} onRefreshUsers={onRefreshUsers} onSetActiveTab={setActiveTab} />
           )}
           {activeTab === 'resignations' && <ResignationsOversight resignations={resignations} />}
           {activeTab === 'assets' && (

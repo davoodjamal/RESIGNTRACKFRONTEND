@@ -162,6 +162,15 @@ function App() {
     }
   };
 
+  const handleRefreshUsers = async () => {
+    try {
+      const usersData = await fetchUsers();
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Failed to refresh users:', err);
+    }
+  };
+
   if (!user) {
     return <Login onLoginSuccess={handleLoginSuccess} users={users} />;
   }
@@ -172,6 +181,7 @@ function App() {
         systemSettings={systemSettings}
         onUpdateSettings={handleUpdateSettings}
         users={users}
+        onRefreshUsers={handleRefreshUsers}
         auditLogs={auditLogs}
         onLogout={handleLogout}
         resignations={resignations}
