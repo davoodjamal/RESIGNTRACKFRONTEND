@@ -73,6 +73,8 @@ export async function fetchUsers(params = {}) {
   const queryString = query.toString();
   const url = queryString ? `${API_BASE}/users/?${queryString}` : `${API_BASE}/users/`;
   return request(url);
+}export async function fetchUserById(id) {
+  return request(`${API_BASE}/users/${id}/`);
 }
 
 export async function createUser(data) {
