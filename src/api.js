@@ -49,6 +49,11 @@ export async function login(email, password, role) {
       email: data.email,
       username: data.username,
       role: data.role,
+      fullName: data.fullName,
+      phone: data.phone,
+      dob: data.dob,
+      designation: data.designation,
+      address: data.address,
     }));
   }
   return data;
@@ -144,5 +149,25 @@ export async function addAuditLog(message) {
   return request(`${API_BASE}/audit-logs/`, {
     method: 'POST',
     body: JSON.stringify({ message }),
+  });
+}
+
+// ─── Profile ────────────────────────────────────────────
+export async function fetchProfile() {
+  return request(`${API_BASE}/users/me/`);
+}
+
+export async function updateProfile(data) {
+  return request(`${API_BASE}/users/me/`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// ─── Exit Interview Feedback ────────────────────────────
+export async function submitExitInterview(resignationId, exitFeedback) {
+  return request(`${API_BASE}/resignations/${resignationId}/feedback/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ exitFeedback }),
   });
 }

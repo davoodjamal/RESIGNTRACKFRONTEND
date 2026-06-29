@@ -43,6 +43,7 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                      <span className="px-4 py-1.5 bg-[#d8e2ff] text-[#001a42] border border-[#00dbe9]/20 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
                         Active Employee
                      </span>
+                     <h2 className="text-xl font-bold text-[#e4e1e9] mt-2">{user.fullName || user.username || 'Employee'}</h2>
                   </div>
                   
                   <div className="space-y-6">
@@ -53,7 +54,7 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                         </div>
                         <div>
                            <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Email Address</p>
-                           <p className="text-sm font-bold text-[#e4e1e9]">{user.email || 'a.thompson@resigntrack.com'}</p>
+                           <p className="text-sm font-bold text-[#e4e1e9]">{user.email || 'N/A'}</p>
                         </div>
                      </div>
                      <div className="flex items-center gap-4">
@@ -62,7 +63,7 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                         </div>
                         <div>
                            <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Contact Number</p>
-                           <p className="text-sm font-bold text-[#e4e1e9]">+1 (555) 012-3456</p>
+                           <p className="text-sm font-bold text-[#e4e1e9]">{user.phone || 'N/A'}</p>
                         </div>
                      </div>
                      <div className="flex items-center gap-4">
@@ -71,7 +72,7 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                         </div>
                         <div>
                            <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Location</p>
-                           <p className="text-sm font-bold text-[#e4e1e9]">San Francisco, CA</p>
+                           <p className="text-sm font-bold text-[#e4e1e9]">{user.address || 'N/A'}</p>
                         </div>
                      </div>
                   </div>
@@ -103,7 +104,7 @@ export default function EmployeeProfile({ user, onEditProfile }) {
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-8">
                      <div>
                         <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-1">Designation</p>
-                        <p className="text-base font-bold text-[#00dbe9]">Senior Lead Designer (L5)</p>
+                        <p className="text-base font-bold text-[#00dbe9]">{user.designation || 'N/A'}</p>
                      </div>
                      <div>
                         <p className="text-xs font-bold text-[#b9cacb] uppercase tracking-wider mb-1">Join Date</p>
