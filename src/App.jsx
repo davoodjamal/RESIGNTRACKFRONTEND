@@ -16,11 +16,29 @@ import {
   addAuditLog as apiAddAuditLog,
   fetchProfile,
   updateProfile,
+  submitExitInterview,
+  fetchAssets,
+  createAsset,
+  updateAssetStatus,
+  assignAsset,
+  returnAsset,
+  fetchNoticePeriod,
+  withdrawResignation,
+  fetchChecklistTasks,
+  updateChecklistTaskStatus,
+  fetchAssetAuditTrail,
+  createRescheduleRequest,
+  fetchRescheduleRequests,
+  decideRescheduleRequest,
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead
   submitExitInterview
 } from './api';
 
 function App() {
   const [user, setUser] = useState(getCurrentUser());
+  const [loadingData, setLoadingData] = useState(true);
 
   // System settings configured by Admin and read by other portals
   const [systemSettings, setSystemSettings] = useState({
@@ -35,55 +53,81 @@ function App() {
   // Shared Resignation Requests
   const [resignations, setResignations] = useState([]);
 
+  const [noticePeriodData, setNoticePeriodData] = useState(null);
+
+  const [checklistTasks, setChecklistTasks] = useState([]);
+
   // System Users configuration, editable by Admin
   const [users, setUsers] = useState([]);
 
-  // Simulated assets state to prevent reference errors in Admin and HR portals
-  const [assets, setAssets] = useState([
-    { id: '1', name: 'MacBook Pro 16"', type: 'Laptop', serial: 'C02F2345Q6W7', status: 'Assigned', assignedTo: 'davood@resigntrack.com' },
-    { id: '2', name: 'Dell UltraSharp 27"', type: 'Monitor', serial: 'CN-098765-ABCD', status: 'Available', assignedTo: '' },
-    { id: '3', name: 'iPhone 15 Pro', type: 'Mobile', serial: 'DNP987654321', status: 'Available', assignedTo: '' }
-  ]);
+  // Real assets state synced with database
+  const [assets, setAssets] = useState([]);
+  const [assetAuditTrail, setAssetAuditTrail] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
-  const [assetAuditTrail, setAssetAuditTrail] = useState([
-    { id: '1', assetId: '1', action: 'Assign', performedBy: 'hr@resigntrack.com', date: '2026-06-10', notes: 'Assigned to Davood jamal' }
-  ]);
-
-  const handleAssignAsset = (assetId, email) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: 'Assigned', assignedTo: email } : a));
-    setAssetAuditTrail(prev => [
-      { id: Date.now().toString(), assetId, action: 'Assign', performedBy: user?.email || 'System', date: new Date().toISOString().split('T')[0], notes: `Assigned to ${email}` },
-      ...prev
-    ]);
+  const handleAssignAsset = async (assetId, employee) => {
+    try {
+      const email = employee?.email || employee;
+      await assignAsset(assetId, email);
+      const [assetsData, auditData] = await Promise.all([
+        fetchAssets(),
+        fetchAssetAuditTrail()
+      ]);
+      setAssets(assetsData);
+      setAssetAuditTrail(auditData);
+    } catch (err) {
+      alert(err.message || 'Failed to assign asset');
+    }
   };
 
-  const handleReturnAsset = (assetId) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: 'Available', assignedTo: '' } : a));
-    setAssetAuditTrail(prev => [
-      { id: Date.now().toString(), assetId, action: 'Return', performedBy: user?.email || 'System', date: new Date().toISOString().split('T')[0], notes: 'Returned to inventory' },
-      ...prev
-    ]);
+  const handleReturnAsset = async (assetId, returnDetails = {}) => {
+    try {
+      await returnAsset(assetId, returnDetails);
+      const [assetsData, auditData] = await Promise.all([
+        fetchAssets(),
+        fetchAssetAuditTrail()
+      ]);
+      setAssets(assetsData);
+      setAssetAuditTrail(auditData);
+    } catch (err) {
+      alert(err.message || 'Failed to return asset');
+    }
   };
 
-  const handleUpdateAssetStatus = (assetId, status) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status } : a));
+  const handleUpdateAssetStatus = async (assetId, status) => {
+    try {
+      await updateAssetStatus(assetId, status);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+    } catch (err) {
+      alert(err.message || 'Failed to update asset status');
+    }
   };
 
-  const handleCreateAsset = (newAsset) => {
-    setAssets(prev => [...prev, { ...newAsset, id: (prev.length + 1).toString() }]);
+  const handleCreateAsset = async (newAsset) => {
+    try {
+      await createAsset(newAsset);
+      const assetsData = await fetchAssets();
+      setAssets(assetsData);
+    } catch (err) {
+      alert(err.message || 'Failed to create asset');
+    }
   };
 
-  // Load data when user state changes
   useEffect(() => {
     if (!user) return;
 
     const loadData = async () => {
       try {
+        const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData, notificationsData] = await Promise.all([
         const [settingsData, resignationsData, logsData, profileData] = await Promise.all([
           fetchSettings(),
           fetchResignations(),
           fetchAuditLogs(),
           fetchProfile().catch(() => null),
+          user.role === 'employee' ? fetchNoticePeriod().catch(() => null) : Promise.resolve(null),
+          user.role === 'employee' ? fetchChecklistTasks().catch(() => []) : Promise.resolve([]),
+          fetchNotifications().catch(() => []),
         ]);
         setSystemSettings(settingsData);
         setResignations(resignationsData);
@@ -117,16 +161,88 @@ function App() {
           }
         }
 
+        if (profileData) {
+          const updatedUser = {
+            ...user,
+            id: profileData.id || user.id,
+            email: profileData.email || user.email,
+            username: profileData.username || user.username,
+            role: profileData.role || user.role,
+            fullName: profileData.fullName || profileData.full_name,
+            phone: profileData.phone,
+            dob: profileData.dob,
+            designation: profileData.designation,
+            address: profileData.address,
+            joinDate: profileData.joinDate,
+          };
+
+          const hasChanged =
+            user.email !== updatedUser.email ||
+            user.username !== updatedUser.username ||
+            user.role !== updatedUser.role ||
+            user.fullName !== updatedUser.fullName ||
+            user.phone !== updatedUser.phone ||
+            user.dob !== updatedUser.dob ||
+            user.designation !== updatedUser.designation ||
+            user.address !== updatedUser.address ||
+            user.joinDate !== updatedUser.joinDate;
+
+          if (hasChanged) {
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
+        }
+
         if (user.role === 'admin' || user.role === 'hr') {
-          const usersData = await fetchUsers();
+          const [usersData, assetsData, auditData] = await Promise.all([
+            fetchUsers(),
+            fetchAssets().catch(() => []),
+            fetchAssetAuditTrail().catch(() => [])
+          ]);
           setUsers(usersData);
+          setAssets(assetsData);
+          setAssetAuditTrail(auditData);
+          setNotifications(notificationsData);
+        } else if (user.role === 'employee') {
+          const assetsData = await fetchAssets().catch(() => []);
+          setAssets(assetsData);
+          setNotifications(notificationsData);
+          if (noticePeriodInfo) {
+            setNoticePeriodData(noticePeriodInfo);
+          }
+          if (checklistData) {
+            setChecklistTasks(checklistData);
+          }
         }
       } catch (err) {
         console.error('Failed to load data from backend:', err);
+      } finally {
+        setLoadingData(false);
       }
     };
 
     loadData();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const pollAssets = async () => {
+      try {
+        const assetsData = await fetchAssets().catch(() => []);
+        setAssets(assetsData);
+
+        if (user.role === 'admin' || user.role === 'hr') {
+          const auditData = await fetchAssetAuditTrail().catch(() => []);
+          setAssetAuditTrail(auditData);
+        }
+      } catch (err) {
+        console.error('Failed to poll assets in real-time:', err);
+      }
+    };
+
+    const interval = setInterval(pollAssets, 5000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Add a log to the audit stream
@@ -143,6 +259,7 @@ function App() {
   const handleLoginSuccess = (role, email) => {
     const currentUser = getCurrentUser();
     setUser(currentUser);
+    setLoadingData(true);
     addAuditLog(`User session opened: [${email}] logged in as ${role.toUpperCase()}.`);
   };
 
@@ -153,16 +270,40 @@ function App() {
     }
     apiLogout();
     setUser(null);
+    setLoadingData(true);
   };
 
   // Submit new Resignation (Employee Portal)
-  const handleSubmitResignation = async (newResignation) => {
+  const handleSubmitResignation = (createdResignation) => {
+    setResignations((prev) => {
+      const filtered = prev.filter(r => r.id !== createdResignation.id && r.email !== createdResignation.email);
+      return [createdResignation, ...filtered];
+    });
+    addAuditLog(`Exit request submitted: Employee [${createdResignation.email}] filed resignation (${createdResignation.reason}).`);
+    fetchNoticePeriod().then(setNoticePeriodData).catch(console.error);
+    fetchChecklistTasks().then(setChecklistTasks).catch(console.error);
+  };
+
+  const handleWithdrawResignation = async (resignationId) => {
     try {
-      const createdResignation = await apiSubmitResignation(newResignation);
-      setResignations((prev) => [createdResignation, ...prev]);
-      addAuditLog(`Exit request submitted: Employee [${createdResignation.email}] filed resignation (${createdResignation.reason}).`);
+      const updated = await withdrawResignation(resignationId);
+      setResignations(prev => prev.map(r => r.id === resignationId ? updated : r));
+      addAuditLog(`Exit request withdrawn: Employee [${updated.email}] withdrew resignation.`);
+      setNoticePeriodData(null);
+      setChecklistTasks([]);
+      alert('Resignation withdrawn successfully.');
     } catch (err) {
-      alert(err.message || 'Failed to submit resignation');
+      alert(err.message || 'Failed to withdraw resignation');
+    }
+  };
+
+  const handleUpdateChecklistTaskStatus = async (taskId, status) => {
+    try {
+      const updatedTask = await updateChecklistTaskStatus(taskId, status);
+      setChecklistTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+      addAuditLog(`Exit checklist task updated: [${updatedTask.title}] status set to ${status.toUpperCase()}.`);
+    } catch (err) {
+      alert(err.message || 'Failed to update task status');
     }
   };
 
@@ -171,6 +312,7 @@ function App() {
       const updated = await updateProfile(profileData);
       const updatedUser = {
         ...user,
+        id: updated.id || user.id,
         email: updated.email || user.email,
         username: updated.username || user.username,
         fullName: updated.fullName || updated.full_name,
@@ -188,6 +330,15 @@ function App() {
     }
   };
 
+  const handleSaveExitInterview = async (resignationId, exitFeedback, status) => {
+    try {
+      await submitExitInterview(resignationId, exitFeedback, status);
+      const resignationsData = await fetchResignations();
+      setResignations(resignationsData);
+      const target = resignationsData.find(r => r.id === resignationId);
+      if (target) {
+        addAuditLog(`Exit interview feedback updated for [${target.email}].`);
+      }
   const handleSaveExitInterview = async (resignationId, exitFeedback) => {
     try {
       const updated = await submitExitInterview(resignationId, exitFeedback);
@@ -197,6 +348,50 @@ function App() {
       alert(err.message || 'Failed to save exit interview');
     }
   };
+
+  const handleRescheduleRequest = async (requestData) => {
+    try {
+      const updatedRequest = await createRescheduleRequest(requestData);
+      const resignationsData = await fetchResignations();
+      setResignations(resignationsData);
+      return updatedRequest;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to submit reschedule request');
+    }
+  };
+
+  const handleDecideRescheduleRequest = async (requestId, decision, comments) => {
+    try {
+      const result = await decideRescheduleRequest(requestId, decision, comments);
+      const resignationsData = await fetchResignations();
+      setResignations(resignationsData);
+      addAuditLog(`Exit interview reschedule ${decision.toLowerCase()}: ID ${requestId}.`);
+      return result;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to submit reschedule decision');
+    }
+  };
+
+  const handleMarkNotificationRead = async (id) => {
+    try {
+      await markNotificationRead(id);
+      const notifs = await fetchNotifications();
+      setNotifications(notifs);
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      const notifs = await fetchNotifications();
+      setNotifications(notifs);
+    } catch (err) {
+      console.error('Failed to mark all notifications read:', err);
+    }
+  };
+
 
   // Approve or Reject Resignation (HR Portal)
   const handleUpdateStatus = async (idOrEmail, status) => {
@@ -235,8 +430,30 @@ function App() {
     }
   };
 
+  const handleRefreshResignations = async () => {
+    try {
+      const [resData, usersData] = await Promise.all([
+        fetchResignations(),
+        fetchUsers()
+      ]);
+      setResignations(resData);
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Failed to refresh resignations:', err);
+    }
+  };
+
   if (!user) {
     return <Login onLoginSuccess={handleLoginSuccess} users={users} />;
+  }
+
+  if (loadingData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[#131318] text-[#e4e1e9]">
+        <span className="animate-spin material-symbols-outlined text-[48px] text-[#00dbe9]">progress_activity</span>
+        <p className="text-[#b9cacb] text-sm font-medium">Loading session...</p>
+      </div>
+    );
   }
 
   if (user.role === 'admin') {
@@ -255,6 +472,9 @@ function App() {
         onReturnAsset={handleReturnAsset}
         onUpdateAssetStatus={handleUpdateAssetStatus}
         onCreateAsset={handleCreateAsset}
+        notifications={notifications}
+        onMarkNotificationRead={handleMarkNotificationRead}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
       />
     );
   }
@@ -265,10 +485,20 @@ function App() {
         user={user}
         resignations={resignations}
         onSubmitResignation={handleSubmitResignation}
+        onWithdrawResignation={handleWithdrawResignation}
         systemSettings={systemSettings}
+        noticePeriodData={noticePeriodData}
+        checklistTasks={checklistTasks}
+        onUpdateTaskStatus={handleUpdateChecklistTaskStatus}
         onLogout={handleLogout}
         onUpdateProfile={handleUpdateProfile}
         onSaveExitInterview={handleSaveExitInterview}
+        assets={assets}
+        onUpdateAssetStatus={handleUpdateAssetStatus}
+        onRescheduleRequest={handleRescheduleRequest}
+        notifications={notifications}
+        onMarkNotificationRead={handleMarkNotificationRead}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
       />
     );
   }
@@ -286,6 +516,11 @@ function App() {
         onReturnAsset={handleReturnAsset}
         onUpdateAssetStatus={handleUpdateAssetStatus}
         onCreateAsset={handleCreateAsset}
+        onDecideRescheduleRequest={handleDecideRescheduleRequest}
+        notifications={notifications}
+        onMarkNotificationRead={handleMarkNotificationRead}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+        onRefreshResignations={handleRefreshResignations}
       />
     );
   }

@@ -23,6 +23,7 @@ const initialFormState = {
   designation: '',
   address: '',
   role: 'hr',
+  joinDate: new Date().toISOString().split('T')[0],
 };
 
 export default function CreateUserModal({ onClose, onRefreshUsers, onNavigateUsers }) {
@@ -121,6 +122,7 @@ export default function CreateUserModal({ onClose, onRefreshUsers, onNavigateUse
         designation: form.designation.trim(),
         address: form.address.trim(),
         role: form.role,
+        joinDate: form.joinDate,
         permissions: Object.keys(permissions).filter((key) => permissions[key]),
       };
 
@@ -173,7 +175,7 @@ export default function CreateUserModal({ onClose, onRefreshUsers, onNavigateUse
                     <Icon className="text-[#00dbe9] text-[20px]">badge</Icon>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Work Information</h3>
                   </div>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="flex flex-col gap-6">
                     <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Employee ID</span>
                       <input
@@ -182,7 +184,7 @@ export default function CreateUserModal({ onClose, onRefreshUsers, onNavigateUse
                         className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none"
                       />
                     </label>
-                    <label className="flex flex-col gap-2 text-sm text-[#e4e1e9] md:col-span-2">
+                    <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Designation</span>
                       <input
                         type="text"
@@ -196,9 +198,10 @@ export default function CreateUserModal({ onClose, onRefreshUsers, onNavigateUse
                     <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Join Date</span>
                       <input
-                        disabled
-                        value={new Date().toLocaleDateString('en-CA')}
-                        className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none"
+                        type="date"
+                        value={form.joinDate}
+                        onChange={(event) => setForm({ ...form, joinDate: event.target.value })}
+                        className="rounded-xl border px-4 py-3 text-sm text-[#e4e1e9] outline-none transition focus:border-[#00dbe9] focus:ring-2 focus:ring-[#00dbe9]/30 bg-[#2a292f] border-[#3b494b]"
                       />
                     </label>
                   </div>

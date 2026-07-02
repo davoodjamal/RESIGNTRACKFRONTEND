@@ -40,11 +40,11 @@ const getJoinDate = (email, id) => {
   return `${month} ${day}, ${year}`;
 };
 
-export default function EmployeeDirectory({ setActiveTab, setSelectedEmployee }) {
+export default function EmployeeDirectory({ onEmployeeClick }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('Active');
+  const [statusFilter, setStatusFilter] = useState('In-Notice');
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 6;
@@ -67,20 +67,7 @@ export default function EmployeeDirectory({ setActiveTab, setSelectedEmployee })
   }, [statusFilter]);
 
   const handleCardClick = (emp) => {
-    if (emp.status !== 'In-Notice') return;
-    
-    const formattedEmp = {
-      name: emp.fullName || emp.username,
-      role: emp.designation || 'Employee',
-      status: emp.status,
-      img: getAvatarUrl(emp.email),
-      dept: 'Engineering',
-      join: getJoinDate(emp.email, emp.id),
-      email: emp.email,
-      phone: emp.phone || '+1 555-0000'
-    };
-    setSelectedEmployee(formattedEmp);
-    setActiveTab('Resignations');
+    onEmployeeClick?.(emp.id);
   };
 
   const totalPages = Math.max(1, Math.ceil(employees.length / itemsPerPage));
@@ -144,7 +131,9 @@ export default function EmployeeDirectory({ setActiveTab, setSelectedEmployee })
               const name = emp.fullName || emp.username;
               const designation = emp.designation || 'Employee';
               const avatar = getAvatarUrl(emp.email);
-              const joinDate = getJoinDate(emp.email, emp.id);
+              const joinDate = emp.joinDate
+                ? new Date(emp.joinDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                : getJoinDate(emp.email, emp.id);
               const statusColor = getStatusColor(emp.status);
 
               return (

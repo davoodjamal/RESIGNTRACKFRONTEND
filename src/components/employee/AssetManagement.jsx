@@ -83,30 +83,31 @@ const displayStatus = {
   Escalated: 'Escalated'
 };
 
-export default function AssetManagement({ user, resignation }) {
+export default function AssetManagement({ user, resignation, assets: propAssets, onUpdateAssetStatus }) {
   const storageKey = `resigntrack-assets-${user?.email || 'guest'}`;
   const [assets, setAssets] = useState([]);
   const [modal, setModal] = useState({ type: null, asset: null, value: '' });
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        setAssets(JSON.parse(saved));
-        return;
-      } catch (err) {
-        console.warn('Unable to parse saved assets', err);
-      }
+    if (propAssets && propAssets.length > 0) {
+      const formatted = propAssets.map(a => {
+        const displayTag = a.tag || a.id.toString();
+        return {
+          id: displayTag,
+          dbId: a.id,
+          name: a.name,
+          desc: a.notes || `${a.type} assigned to you`,
+          icon: a.type === 'Laptop' ? 'laptop_mac' : a.type === 'Monitor' ? 'monitor' : a.type === 'Mobile' ? 'smartphone' : 'badge',
+          status: a.status === 'Available' ? 'Collected' : a.status === 'Assigned' ? 'In Progress' : a.status,
+          history: []
+        };
+      });
+      setAssets(formatted);
+    } else {
+      setAssets([]);
     }
-    setAssets(defaultAssets);
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (assets.length) {
-      localStorage.setItem(storageKey, JSON.stringify(assets));
-    }
-  }, [assets, storageKey]);
+  }, [propAssets]);
 
   useEffect(() => {
     if (!toast) return;
@@ -114,15 +115,27 @@ export default function AssetManagement({ user, resignation }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const updateAsset = (assetId, changes, historyNote) => {
+  const updateAsset = async (assetId, changes, historyNote) => {
+    // If status is changed, propagate to backend
+    if (changes.status && onUpdateAssetStatus) {
+      let dbStatus = changes.status;
+      if (changes.status === 'In Progress') dbStatus = 'Assigned';
+      else if (changes.status === 'Collected') dbStatus = 'Available';
+
+      const matched = propAssets.find(a => (a.tag || a.id.toString()) === assetId);
+      if (matched) {
+        await onUpdateAssetStatus(matched.id, dbStatus);
+      }
+    }
+
     setAssets((prev) =>
       prev.map((item) =>
         item.id === assetId
           ? {
-              ...item,
-              ...changes,
-              history: historyNote ? [{ time: new Date().toLocaleString(), note: historyNote }, ...(item.history || [])] : item.history
-            }
+            ...item,
+            ...changes,
+            history: historyNote ? [{ time: new Date().toLocaleString(), note: historyNote }, ...(item.history || [])] : item.history
+          }
           : item
       )
     );
@@ -183,6 +196,88 @@ export default function AssetManagement({ user, resignation }) {
     setModal({ type: null, asset: null, value: '' });
   };
 
+  const totalAssets = assets.length;
+  const returnedAssets = assets.filter(a => a.status === 'Collected').length;
+  const damagedOrEscalated = assets.filter(a => a.status === 'Damaged' || a.status === 'Escalated').length;
+  const pendingReturn = assets.filter(a => a.status === 'In Progress' || a.status === 'Pending Kit Pickup').length;
+
+  let step1State = 'pending';
+  let step2State = 'pending';
+  let step3State = 'pending';
+
+  if (totalAssets === 0) {
+    step1State = 'completed';
+    step2State = 'completed';
+    step3State = 'completed';
+  } else {
+    // Step 1: Drop off
+    if (pendingReturn === 0) {
+      step1State = 'completed';
+    } else {
+      step1State = 'active';
+    }
+
+    // Step 2: IT Inspection
+    if (step1State === 'completed') {
+      if (damagedOrEscalated > 0) {
+        step2State = 'active'; // issue flagged
+      } else if (returnedAssets === totalAssets) {
+        step2State = 'completed';
+      } else {
+        step2State = 'active';
+      }
+    } else if (returnedAssets > 0) {
+      step2State = 'active';
+    }
+
+    // Step 3: Final Clearance
+    if (step1State === 'completed' && step2State === 'completed') {
+      step3State = 'completed';
+    } else if (step1State === 'completed' && step2State === 'active') {
+      step3State = 'pending'; // blocked by inspection issue
+    }
+  }
+
+  const renderStep = (title, subtitle, state, hasLine = true) => {
+    let circleElement = null;
+    let titleClass = 'text-base font-bold text-[#76777d]';
+    let subtitleClass = 'text-xs font-medium text-[#76777d] mt-0.5';
+    let lineClass = 'w-0.5 h-12 bg-[#3b494b]';
+
+    if (state === 'completed') {
+      circleElement = (
+        <div className="w-8 h-8 rounded-full bg-[#00dbe9] flex items-center justify-center shadow-sm">
+          <Icon className="text-[16px] text-[#131318] font-bold">check</Icon>
+        </div>
+      );
+      titleClass = 'text-base font-bold text-[#e4e1e9]';
+      subtitleClass = 'text-xs font-medium text-[#b9cacb] mt-0.5';
+    } else if (state === 'active') {
+      circleElement = (
+        <div className="w-8 h-8 rounded-full border-4 border-[#00dbe9] bg-[#1f1f24] shadow-sm animate-pulse"></div>
+      );
+      titleClass = 'text-base font-bold text-[#e4e1e9]';
+      subtitleClass = 'text-xs font-medium text-[#b9cacb] mt-0.5';
+    } else {
+      circleElement = (
+        <div className="w-8 h-8 rounded-full border-4 border-[#3b494b] bg-[#2a292f]"></div>
+      );
+    }
+
+    return (
+      <div className="flex gap-5">
+        <div className="flex flex-col items-center">
+          {circleElement}
+          {hasLine && <div className={lineClass}></div>}
+        </div>
+        <div className="pt-1">
+          <p className={titleClass}>{title}</p>
+          <p className={subtitleClass}>{subtitle}</p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
       {toast && (
@@ -199,64 +294,36 @@ export default function AssetManagement({ user, resignation }) {
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        <div className="lg:col-span-2 bg-[#00dbe9] text-white p-8 rounded-2xl flex flex-col items-start gap-8 relative overflow-hidden shadow-md">
+        <div className="lg:col-span-2 bg-[#1f1f24] p-8 rounded-2xl flex flex-col items-start gap-8 relative overflow-hidden shadow-sm border border-[#3b494b]">
           <div className="relative z-10 w-full">
-            <h3 className="text-2xl font-bold mb-3 tracking-tight">Offboarding Procedure</h3>
-            <p className="text-sm opacity-90 max-w-xl mb-8 leading-relaxed">
+            <h3 className="text-2xl font-bold mb-3 tracking-tight text-[#00dbe9]">Offboarding Procedure</h3>
+            <p className="text-sm max-w-xl mb-8 leading-relaxed text-[#b9cacb]">
               All company assets must be returned by your last working day ({resignation?.relievingDate || 'TBD'}). Please ensure all data is backed up and your accounts are signed out from the hardware.
             </p>
             <div className="flex flex-wrap gap-4 w-full">
-              <div className="bg-[#1f1f24]/10 backdrop-blur-md p-4 rounded-xl flex-1 min-w-[200px] border border-white/20">
-                <Icon className="block mb-2 text-[#88abff] text-[28px]">location_on</Icon>
-                <p className="text-xs font-bold uppercase tracking-wider mb-1">Return Location</p>
-                <p className="text-sm opacity-90 font-medium">IT HUB, 4th Floor, Sector B</p>
+              <div className="bg-[#131318] p-4 rounded-xl flex-1 min-w-[200px] border border-[#3b494b]">
+                <Icon className="block mb-2 text-[#00dbe9] text-[28px]">location_on</Icon>
+                <p className="text-xs font-bold uppercase tracking-wider mb-1 text-[#b9cacb]">Return Location</p>
+                <p className="text-sm font-medium text-[#e4e1e9]">IT HUB, 4th Floor, Sector B</p>
               </div>
-              <div className="bg-[#1f1f24]/10 backdrop-blur-md p-4 rounded-xl flex-1 min-w-[200px] border border-white/20">
-                <Icon className="block mb-2 text-[#88abff] text-[28px]">schedule</Icon>
-                <p className="text-xs font-bold uppercase tracking-wider mb-1">Operating Hours</p>
-                <p className="text-sm opacity-90 font-medium">Mon-Fri: 09:00 - 17:00</p>
+              <div className="bg-[#131318] p-4 rounded-xl flex-1 min-w-[200px] border border-[#3b494b]">
+                <Icon className="block mb-2 text-[#00dbe9] text-[28px]">schedule</Icon>
+                <p className="text-xs font-bold uppercase tracking-wider mb-1 text-[#b9cacb]">Operating Hours</p>
+                <p className="text-sm font-medium text-[#e4e1e9]">Mon-Fri: 09:00 - 17:00</p>
               </div>
             </div>
           </div>
           <div className="hidden lg:block absolute -right-10 -bottom-10 opacity-10">
-            <Icon className="text-[240px]">inventory_2</Icon>
+            <Icon className="text-[240px] text-[#00dbe9]">inventory_2</Icon>
           </div>
         </div>
 
         <div className="bg-[#2a292f] p-8 rounded-2xl border border-[#3b494b] shadow-sm">
           <h3 className="text-xl font-bold text-[#00dbe9] mb-6">Verification Timeline</h3>
           <div className="space-y-0 relative">
-            <div className="flex gap-5">
-              <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-[#00dbe9] flex items-center justify-center shadow-sm">
-                  <Icon className="text-[16px] text-white font-bold">check</Icon>
-                </div>
-                <div className="w-0.5 h-12 bg-[#3b494b]"></div>
-              </div>
-              <div className="pt-1">
-                <p className="text-base font-bold text-[#e4e1e9]">Drop off Assets</p>
-                <p className="text-xs font-medium text-[#b9cacb] mt-0.5">Last Working Day</p>
-              </div>
-            </div>
-            <div className="flex gap-5">
-              <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full border-4 border-[#00dbe9] bg-[#1f1f24] shadow-sm"></div>
-                <div className="w-0.5 h-12 bg-[#3b494b]"></div>
-              </div>
-              <div className="pt-1">
-                <p className="text-base font-bold text-[#e4e1e9]">IT Inspection</p>
-                <p className="text-xs font-medium text-[#b9cacb] mt-0.5">Within 24 Hours</p>
-              </div>
-            </div>
-            <div className="flex gap-5">
-              <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full border-4 border-[#3b494b] bg-[#2a292f]"></div>
-              </div>
-              <div className="pt-1">
-                <p className="text-base font-bold text-[#76777d]">Final Clearance</p>
-                <p className="text-xs font-medium text-[#76777d] mt-0.5">After Verification</p>
-              </div>
-            </div>
+            {renderStep('Drop off Assets', 'Last Working Day', step1State, true)}
+            {renderStep('IT Inspection', 'Within 24 Hours', step2State, true)}
+            {renderStep('Final Clearance', 'After Verification', step3State, false)}
           </div>
         </div>
       </div>
@@ -272,6 +339,9 @@ export default function AssetManagement({ user, resignation }) {
               <tr className="border-b border-[#3b494b]">
                 <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Asset Details</th>
                 <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider">Serial Number</th>
+                {resignation && resignation.status === 'Approved' && (
+                  <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider text-right">Return Status</th>
+                )}
                 <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider text-right">Return Status</th>
               </tr>
             </thead>
@@ -293,6 +363,40 @@ export default function AssetManagement({ user, resignation }) {
                     <td className="px-8 py-5">
                       <code className="text-xs font-bold bg-[#2a292f] text-[#00dbe9] px-2.5 py-1.5 rounded-lg border border-[#3b494b]">{asset.id}</code>
                     </td>
+                    {resignation && resignation.status === 'Approved' && (
+                      <td className="px-8 py-5 text-right">
+                        {asset.status === 'In Progress' && (
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#d8e2ff] text-[#001a42] border border-[#00dbe9]/20">
+                            <span className="w-2 h-2 rounded-full bg-[#00dbe9]"></span>
+                            In Progress
+                          </span>
+                        )}
+                        {asset.status === 'Pending Kit Pickup' && (
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#ffe082]/30 text-[#5a4300] border border-[#5a4300]/20">
+                            <span className="w-2 h-2 rounded-full bg-[#5a4300]"></span>
+                            Pending Pickup
+                          </span>
+                        )}
+                        {asset.status === 'Collected' && (
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#d4edda]/80 text-[#155724] border border-[#c3e6cb]">
+                            <span className="w-2 h-2 rounded-full bg-[#155724]"></span>
+                            Collected
+                          </span>
+                        )}
+                        {asset.status === 'Damaged' && (
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#f8d7da] text-[#721c24] border border-[#f5c6cb]">
+                            <span className="w-2 h-2 rounded-full bg-[#721c24]"></span>
+                            Damaged
+                          </span>
+                        )}
+                        {asset.status === 'Escalated' && (
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#f0d9ff] text-[#5f2dde] border border-[#d9bbff]">
+                            <span className="w-2 h-2 rounded-full bg-[#5f2dde]"></span>
+                            Escalated
+                          </span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-8 py-5 text-right">
                       {asset.status === 'In Progress' && (
                         <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#d8e2ff] text-[#001a42] border border-[#00dbe9]/20">

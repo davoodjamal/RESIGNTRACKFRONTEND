@@ -30,7 +30,25 @@ async function request(url, options = {}) {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || data.detail || `Request failed with status ${res.status}`);
+    let errorMsg = data.error || data.detail;
+    if (!errorMsg && data && typeof data === 'object') {
+      const fieldErrors = [];
+      for (const [key, value] of Object.entries(data)) {
+        if (Array.isArray(value)) {
+          fieldErrors.push(`${key}: ${value.join(', ')}`);
+        } else if (typeof value === 'string') {
+          fieldErrors.push(`${key}: ${value}`);
+        }
+      }
+      if (fieldErrors.length > 0) {
+        errorMsg = fieldErrors.join(' | ');
+      }
+    }
+    throw new Error(errorMsg || `Request failed with status ${res.status}`);
+  }
+
+  if (res.status === 204) {
+    return null;
   }
 
   return res.json();
@@ -46,6 +64,7 @@ export async function login(email, password, role) {
     localStorage.setItem('access_token', data.access);
     localStorage.setItem('refresh_token', data.refresh);
     localStorage.setItem('user', JSON.stringify({
+      id: data.id,
       email: data.email,
       username: data.username,
       role: data.role,
@@ -54,6 +73,7 @@ export async function login(email, password, role) {
       dob: data.dob,
       designation: data.designation,
       address: data.address,
+      joinDate: data.joinDate,
     }));
   }
   return data;
@@ -78,8 +98,12 @@ export async function fetchUsers(params = {}) {
   const queryString = query.toString();
   const url = queryString ? `${API_BASE}/users/?${queryString}` : `${API_BASE}/users/`;
   return request(url);
-}export async function fetchUserById(id) {
+} export async function fetchUserById(id) {
   return request(`${API_BASE}/users/${id}/`);
+}
+
+export async function fetchEmployeeById(id) {
+  return request(`${API_BASE}/employees/${id}/`);
 }
 
 export async function createUser(data) {
@@ -96,6 +120,13 @@ export async function updateUser(id, data) {
   });
 }
 
+export async function updateJoiningDate(id, date) {
+  return request(`${API_BASE}/v1/admin/employee/${id}/joining-date/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ date }),
+  });
+}
+
 export async function deleteUser(id) {
   return request(`${API_BASE}/users/${id}/`, {
     method: 'DELETE',
@@ -108,10 +139,55 @@ export async function fetchResignations() {
   return request(`${API_BASE}/resignations/`);
 }
 
+export async function fetchDraftResignation() {
+  return request(`${API_BASE}/resignations/draft/`);
+}
+
+export async function saveDraftResignation(data, id = null) {
+  if (id) {
+    return request(`${API_BASE}/resignations/draft/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  } else {
+    return request(`${API_BASE}/resignations/draft/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+}
+
 export async function submitResignation(data) {
-  return request(`${API_BASE}/resignations/`, {
+  return request(`${API_BASE}/resignations/submit/`, {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+export async function fetchDashboardSummary() {
+  return request(`${API_BASE}/dashboard/`);
+}
+
+export async function fetchEmployeeResignationStatus() {
+  return request(`${API_BASE}/resignations/status/`);
+}
+
+export async function fetchNoticePeriod() {
+  return request(`${API_BASE}/resignations/notice-period/`);
+}
+
+export async function fetchChecklistTasks() {
+  return request(`${API_BASE}/resignations/checklist/`);
+}
+
+export async function fetchResignationChecklistTasksForHR(resignationId) {
+  return request(`${API_BASE}/resignations/${resignationId}/checklist/`);
+}
+
+export async function updateChecklistTaskStatus(taskId, status) {
+  return request(`${API_BASE}/resignations/checklist/${taskId}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
   });
 }
 
@@ -165,6 +241,247 @@ export async function updateProfile(data) {
 }
 
 // ─── Exit Interview Feedback ────────────────────────────
+export async function submitExitInterview(resignationId, exitFeedback, status = 'SUBMITTED') {
+  const body = {
+    resignation_id: resignationId,
+    status: status,
+    reason_for_resignation: exitFeedback.reason === 'Other' && exitFeedback.otherReasonText ? `Other: ${exitFeedback.otherReasonText}` : exitFeedback.reason,
+    role_satisfaction: exitFeedback.roleRating,
+    manager_relationship: exitFeedback.managerRating,
+    career_growth: exitFeedback.growthRating,
+    company_culture: exitFeedback.cultureRating,
+    adequate_training: exitFeedback.training === 'yes' ? 'Yes, absolutely' : 'No, it was lacking',
+    most_enjoyed: exitFeedback.enjoyText,
+    suggested_improvements: exitFeedback.improveText,
+    recommend_to_others: exitFeedback.recommend === 'yes' ? 'Yes' : 'No',
+    consider_rejoining: exitFeedback.rejoin === 'yes' ? 'Yes' : 'No'
+  };
+
+  return request(`${API_BASE}/v1/employee/exit-interview`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchEmployeeExitInterview(employeeId) {
+  return request(`${API_BASE}/v1/hr/directory/employee/${employeeId}/exit-interview`);
+}
+
+// ─── Dashboard Metrics ──────────────────────────────────
+export async function fetchDashboardMetrics() {
+  return request(`${API_BASE}/dashboard/metrics/`);
+}
+
+// ─── System Health ──────────────────────────────────────
+export async function fetchSystemHealth() {
+  return request(`${API_BASE}/system/health/`);
+}
+
+export async function fetchSystemHealthV1() {
+  return request(`${API_BASE}/v1/system-health/`);
+}
+
+export async function fetchAdminAnalyticsSync(params = {}) {
+  const query = new URLSearchParams();
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+      if (Array.isArray(params[key])) {
+        params[key].forEach(val => query.append(`${key}[]`, val));
+      } else {
+        query.append(key, params[key]);
+      }
+    }
+  });
+  const queryString = query.toString();
+  const url = `${API_BASE}/v1/admin/analytics/sync/${queryString ? `?${queryString}` : ''}`;
+  return request(url);
+}
+
+// ─── Admin Audit Logs ───────────────────────────────────
+export async function fetchAdminAuditLogs(params = {}) {
+  const query = new URLSearchParams();
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+      query.append(key, params[key]);
+    }
+  });
+  const queryString = query.toString();
+  const url = `${API_BASE}/v1/admin/audit-logs/${queryString ? `?${queryString}` : ''}`;
+  return request(url);
+}
+
+export function getAuditLogsStreamUrl() {
+  return `${API_BASE}/v1/admin/audit-logs/stream/`;
+}
+
+// ─── Analytics Individual Metrics ────────────────────────
+export async function fetchPendingApprovals() {
+  return request(`${API_BASE}/analytics/approvals/pending/`);
+}
+
+export async function fetchFailedLogins() {
+  return request(`${API_BASE}/analytics/logins/failed/`);
+}
+
+export async function fetchHourlyActivity() {
+  return request(`${API_BASE}/analytics/activity/hourly/`);
+}
+
+export async function fetchSystemUsageSnapshot() {
+  return request(`${API_BASE}/v1/admin/analytics/system-usage/snapshot/`);
+}
+
+export function getSystemUsageStreamUrl() {
+  return `${API_BASE}/v1/admin/analytics/system-usage/stream/`;
+}
+
+// ─── Asset Management ─────────────────────────────────────
+// ─── Assets ─────────────────────────────────────────────
+export async function fetchAssets() {
+  return request(`${API_BASE}/assets/`);
+}
+
+export async function fetchAssetAuditTrail() {
+  return request(`${API_BASE}/assets/audit/`);
+}
+
+export async function createAsset(data) {
+  return request(`${API_BASE}/assets/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAssetStatus(id, status) {
+  return request(`${API_BASE}/assets/${id}/maintenance/`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function assignAsset(id, email) {
+  return request(`${API_BASE}/assets/${id}/assign/`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function returnAsset(id, data) {
+  return request(`${API_BASE}/assets/${id}/return/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ─── Reschedule Requests ─────────────────────────────────
+export async function createRescheduleRequest(data) {
+  return request(`${API_BASE}/resignations/reschedule/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchAssetDashboard() {
+  return request(`${API_BASE}/assets/dashboard/`);
+}
+
+export async function fetchEmployees() {
+  return request(`${API_BASE}/employees/`);
+}
+
+// ─── Exit Interview & Meetings API ───────────────────────
+export async function fetchExitInterviews(params = {}) {
+  const query = new URLSearchParams();
+  if (params.search) query.append('search', params.search);
+  if (params.reason) query.append('reason', params.reason);
+  if (params.department) query.append('department', params.department);
+  if (params.ordering) query.append('ordering', params.ordering);
+  const queryString = query.toString();
+  return request(`${API_BASE}/exit-interviews/${queryString ? `?${queryString}` : ''}`);
+}
+
+export async function fetchLatestExitInterview() {
+  return request(`${API_BASE}/exit-interviews/latest/`);
+}
+
+export async function fetchExitAnalytics() {
+  return request(`${API_BASE}/exit-interviews/analytics/`);
+}
+
+export async function fetchMeetings() {
+  return request(`${API_BASE}/meetings/`);
+}
+
+export async function createMeeting(data) {
+  return request(`${API_BASE}/exit-meetings/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateMeeting(id, data) {
+  return request(`${API_BASE}/meetings/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteMeeting(id) {
+  return request(`${API_BASE}/meetings/${id}/`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchRescheduleRequests() {
+  return request(`${API_BASE}/resignations/reschedule/list/`);
+}
+
+export async function decideRescheduleRequest(requestId, decision, comments = '') {
+  return request(`${API_BASE}/resignations/reschedule/${requestId}/decision/`, {
+    method: 'POST',
+    body: JSON.stringify({ decision, rejection_reason: comments }),
+  });
+}
+
+// ─── Notifications ──────────────────────────────────────
+export async function fetchNotifications() {
+  return request(`${API_BASE}/notifications/`);
+}
+
+export async function markNotificationRead(id) {
+  return request(`${API_BASE}/notifications/${id}/read/`, {
+    method: 'POST',
+  });
+}
+
+export async function markAllNotificationsRead() {
+  return request(`${API_BASE}/notifications/read-all/`, {
+    method: 'POST',
+  });
+}
+
+// ─── Global Search ──────────────────────────────────────
+export async function searchGlobal(query) {
+  return request(`${API_BASE}/search/?q=${encodeURIComponent(query)}`);
+}
+
+// ─── Resignation Processing ─────────────────────────────
+export async function processResignation(employeeId, action, remarks, noticePeriod) {
+  return request(`${API_BASE}/resignation/process/`, {
+    method: 'PUT',
+    body: JSON.stringify({ employeeId, action, remarks, noticePeriod }),
+  });
+}
+
+// ─── Ex-Employees ───────────────────────────────────────
+export async function fetchExEmployees() {
+  return request(`${API_BASE}/ex-employees/`);
+}
+
+
+
+
+
 export async function submitExitInterview(resignationId, exitFeedback) {
   return request(`${API_BASE}/resignations/${resignationId}/feedback/`, {
     method: 'PATCH',

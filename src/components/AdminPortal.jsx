@@ -11,13 +11,11 @@ import ReportsAnalytics from './admin/ReportsAnalytics';
 import SystemHealth from './admin/SystemHealth';
 import AuditTrailModal from './admin/AuditTrailModal';
 import LogoutConfirmationModal from './admin/LogoutConfirmationModal';
-import AssetManagement from './hr/AssetManagement';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'users', label: 'User Management', icon: 'group' },
   { id: 'resignations', label: 'Resignations', icon: 'exit_to_app' },
-  { id: 'assets', label: 'Assets', icon: 'inventory_2' },
   { id: 'analytics', label: 'Analytics', icon: 'monitoring' },
   { id: 'health', label: 'System Health', icon: 'health_and_safety' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
@@ -59,11 +57,10 @@ export default function AdminPortal({
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-4 px-4 h-10 rounded-[8px] text-sm transition-all duration-150 ${
-                activeTab === item.id
-                  ? 'bg-[#00dbe9] text-[#131318] font-bold scale-[0.98]'
-                  : 'text-[#b9cacb] hover:bg-[#2a292f] font-normal'
-              }`}
+              className={`flex items-center gap-4 px-4 h-10 rounded-[8px] text-sm transition-all duration-150 ${activeTab === item.id
+                ? 'bg-[#00dbe9] text-[#131318] font-bold scale-[0.98]'
+                : 'text-[#b9cacb] hover:bg-[#2a292f] font-normal'
+                }`}
             >
               <Icon fill={activeTab === item.id}>{item.icon}</Icon>
               {item.label}
@@ -106,17 +103,6 @@ export default function AdminPortal({
             <UserManagement users={users} onRefreshUsers={onRefreshUsers} onSetActiveTab={setActiveTab} />
           )}
           {activeTab === 'resignations' && <ResignationsOversight resignations={resignations} />}
-          {activeTab === 'assets' && (
-            <AssetManagement
-              assets={assets}
-              assetAuditTrail={assetAuditTrail}
-              onAssignAsset={onAssignAsset}
-              onReturnAsset={onReturnAsset}
-              onUpdateAssetStatus={onUpdateAssetStatus}
-              onCreateAsset={onCreateAsset}
-              embedded
-            />
-          )}
           {activeTab === 'analytics' && <ReportsAnalytics />}
           {activeTab === 'health' && (
             <SystemHealth
@@ -137,7 +123,7 @@ export default function AdminPortal({
       {/* Global Modals */}
       {showAuditTrail && (
         <AuditTrailModal
-          auditLogs={auditLogs}
+          users={users}
           onClose={() => setShowAuditTrail(false)}
         />
       )}
