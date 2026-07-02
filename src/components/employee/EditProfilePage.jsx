@@ -118,6 +118,7 @@ export default function EditProfilePage({ user, onBack, onSaveProfile }) {
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9]">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Employee ID</span>
                   <input disabled className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none" value={"EMP-" + String(user.id || '').padStart(4, '0')} />
+                  <input disabled className="rounded-xl border border-[#3b494b] bg-[#2a292f] px-4 py-3 text-sm text-[#b9cacb] outline-none" defaultValue="EF-2019-0482" />
                 </label>
                 <label className="flex flex-col gap-2 text-sm text-[#e4e1e9] md:col-span-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#b9cacb]">Designation</span>

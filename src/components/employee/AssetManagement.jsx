@@ -342,6 +342,7 @@ export default function AssetManagement({ user, resignation, assets: propAssets,
                 {resignation && resignation.status === 'Approved' && (
                   <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider text-right">Return Status</th>
                 )}
+                <th className="px-8 py-5 text-xs font-bold text-[#b9cacb] uppercase tracking-wider text-right">Return Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#3b494b]">
@@ -396,6 +397,38 @@ export default function AssetManagement({ user, resignation, assets: propAssets,
                         )}
                       </td>
                     )}
+                    <td className="px-8 py-5 text-right">
+                      {asset.status === 'In Progress' && (
+                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#d8e2ff] text-[#001a42] border border-[#00dbe9]/20">
+                          <span className="w-2 h-2 rounded-full bg-[#00dbe9]"></span>
+                          In Progress
+                        </span>
+                      )}
+                      {asset.status === 'Pending Kit Pickup' && (
+                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#ffe082]/30 text-[#5a4300] border border-[#5a4300]/20">
+                          <span className="w-2 h-2 rounded-full bg-[#5a4300]"></span>
+                          Pending Pickup
+                        </span>
+                      )}
+                      {asset.status === 'Collected' && (
+                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#d4edda]/80 text-[#155724] border border-[#c3e6cb]">
+                          <span className="w-2 h-2 rounded-full bg-[#155724]"></span>
+                          Collected
+                        </span>
+                      )}
+                      {asset.status === 'Damaged' && (
+                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#f8d7da] text-[#721c24] border border-[#f5c6cb]">
+                          <span className="w-2 h-2 rounded-full bg-[#721c24]"></span>
+                          Damaged
+                        </span>
+                      )}
+                      {asset.status === 'Escalated' && (
+                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-[#f0d9ff] text-[#5f2dde] border border-[#d9bbff]">
+                          <span className="w-2 h-2 rounded-full bg-[#5f2dde]"></span>
+                          Escalated
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
