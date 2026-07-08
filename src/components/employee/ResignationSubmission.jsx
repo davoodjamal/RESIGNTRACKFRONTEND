@@ -10,14 +10,6 @@ const emergencyReasons = [
   'Other'
 ];
 
-const emergencyReasons = [
-  'Medical Emergency',
-  'Family Relocation',
-  'Personal / Health Issues',
-  'Immediate Better Opportunity',
-  'Other'
-];
-
 export default function ResignationSubmission({ user, systemSettings, onSubmitResignation }) {
   const [reason, setReason] = useState('');
   const [comments, setComments] = useState('');
@@ -65,38 +57,6 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
           if (draft.last_working_day) setRelievingDate(draft.last_working_day);
           if (draft.additional_feedback) setAdditionalFeedback(draft.additional_feedback);
           if (draft.hr_remarks) setHrRemarks(draft.hr_remarks);
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!reason || !relievingDate) {
-      alert('Please fill out all required fields.');
-      return;
-    }
-    if (isEmergencyRequested && !emergencyReason) {
-      alert('Please select an emergency reason.');
-      return;
-    }
-    if (isEmergencyRequested && !emergencyRemarks.trim()) {
-      alert('Please provide remarks explaining your emergency request.');
-      return;
-    }
-    setIsSubmitting(true);
-    setTimeout(() => {
-      onSubmitResignation({
-        email: user.email,
-        name: user.username || 'Alex Thompson',
-        department: 'Design',
-        reason,
-        submissionDate: new Date().toISOString().split('T')[0],
-        relievingDate,
-        comments,
-        status: systemSettings.autoApprove ? 'Approved' : 'Pending',
-        exitFeedback: {
-          cultureRating: 0,
-          compensationRating: 0,
-          recommend: 'neutral',
-          emergencyReleaseRequested: isEmergencyRequested,
-          emergencyReason: isEmergencyRequested ? emergencyReason : '',
-          emergencyRemarks: isEmergencyRequested ? emergencyRemarks : '',
         }
       } catch (err) {
         console.log('No active draft found or error loading draft:', err.message);

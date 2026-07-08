@@ -30,9 +30,6 @@ export default function EmployeePortal({
   notifications,
   onMarkNotificationRead,
   onMarkAllNotificationsRead
-  onLogout,
-  onUpdateProfile,
-  onSaveExitInterview
 }) {
   const employeeResignation = resignations.find(r => r.email === user.email);
   const hasActiveResignation = !!(employeeResignation && ['Awaiting Exit Interview', 'Pending', 'Approved', 'More Info Requested', 'Pending HR Review', 'Exit Interview Pending', 'Exit Interview Submitted', 'Awaiting Approval'].includes(employeeResignation.status));
@@ -125,7 +122,6 @@ export default function EmployeePortal({
             onSubmit={(feedback) => {
               if (employeeResignation) {
                 onSaveExitInterview(employeeResignation.id, feedback, 'SUBMITTED');
-                onSaveExitInterview(employeeResignation.id, feedback);
                 alert('Exit interview submitted successfully.');
                 setActiveTab('dashboard');
               } else {
@@ -135,7 +131,6 @@ export default function EmployeePortal({
             onSave={(feedback) => {
               if (employeeResignation) {
                 onSaveExitInterview(employeeResignation.id, feedback, 'DRAFT');
-                onSaveExitInterview(employeeResignation.id, feedback);
                 alert('Draft saved successfully.');
               } else {
                 alert('No active resignation found to save draft.');

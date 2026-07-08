@@ -2,19 +2,9 @@ import { useState, useEffect } from 'react';
 import Icon from '../Icon';
 import { fetchUsers } from '../../api';
 
-const defaultImages = {
-  'employee@resigntrack.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDp0nZai5ic4toQDoBtjQMrJAivFopGgH1jUAiVLTq_f5BYy-h3wFlaFs5J4UbwnVCrsJq0botwTQJjwp2C0nmfYGZpAAnIKNtQ_HinjPlMfoJOSLS5vNH7Wc0SMgDlN0uVBX5eT3FMlBiMriatn2t8niS9dANx1nnFgG1AzsHoO3ZvLZbYgqqmAqe2jJm7v3pvGBo30hvCx4XR-p1rPBIfyAsZe5-lyFSEwHyGjg7Xcmy8jUsgVV4Uq4Wr5V4YV4ff4T5Qha0HGRM',
-  's.jenkins@proexit.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDp0nZai5ic4toQDoBtjQMrJAivFopGgH1jUAiVLTq_f5BYy-h3wFlaFs5J4UbwnVCrsJq0botwTQJjwp2C0nmfYGZpAAnIKNtQ_HinjPlMfoJOSLS5vNH7Wc0SMgDlN0uVBX5eT3FMlBiMriatn2t8niS9dANx1nnFgG1AzsHoO3ZvLZbYgqqmAqe2jJm7v3pvGBo30hvCx4XR-p1rPBIfyAsZe5-lyFSEwHyGjg7Xcmy8jUsgVV4Uq4Wr5V4YV4ff4T5Qha0HGRM',
-  'm.thorne@proexit.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAx00e0JA3DjVmVcgIHzfND6gfG4t4cu97HdNYF7ZOVvVstX20sxZHtLzlpKnfYiBsXIjB4uU3VfhdG65Rt6I8WYGRD7F0FnHPXxJwfepy26l7wqbWetRZxfW9ohMZgkOIdJRgZ0sglqWH7M_Qc2o9PfXmWLGoEBth14r4gViMPyoB26k3mNvyyNFBi5POm_bzbEylNrQ-YZ47Uj7X4Qbb6RvxgsLjTzbmbBtKWrU1HyIjx9uxB4H2O52VjuFe9KY38t-Tsw2xPcDnw',
-  'h.vane@proexit.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCY3sNS9BDt87YdUm4dsk8gYhqJQrY7GpUezYWUGFT3w5h4bdBIPwTA8jsm0DwHRUqDwmsMbwFzEx117GlawhMe6yyIXV9hi5iAMuF_4ys-RNc_qYoHJNwdMLuLocEspBtNgWplpj0WYZG2IzUQ3NsJZ7Tdn__UO5LnCDh_QC2vPf4zMqQYv9RrfPsEv5i44JzwjlTLYsNLUQpRQMIwVM48U-7oJGi-yYcrCdvslrl_zqurXw_atB-Ch9mSo3wgdjMJ9XYq9Hip4jdt',
-  'd.chen@proexit.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAWAbMTfIVBZ4KH5jccOYcL5HAooey-wtK4ZU2rgAGG0pT4yprJlnCkgfJ_QuHPgrXCREYkUqRu7BtGo3Yn9nFc9tyFz30Fg-YnrPwaZdbCvBs-wLrrrK-GY4EuZ4GKCE9qq00tlTe6TuwwXD4-Ztpz_LAJOJgkofNNqrxXcr09fCs1U4QfeB5f-IBHi5LtkTkExhrCWzt3IMy_YXqKoaPwyM2f9VvFaiBzLsVn46WYJoiAw_mNA5zL3AwJje0XzMz72-jL9YezJ4Jz',
-  'a.scott@proexit.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuDS6zOYX9ZStGDJsHLC4nFp9A2YKazMKN4lcQ2jY-hTaB_VmhBmCAIjYC3BAAWppmNrj8xXvDm4iDoBoQLtuA6ziYc9U2md4XGQNYggeOLR4wKqOEOId9RPs-Gp1RBYaadt9n2hJBcTjNFWnKtNKhumTivzFwHhInFBBcLUf_zMQ9hn5f64t9AjO5G9kNTob8Gj3suVY7IVZxwJ1CaIE1ll31JrPST45eBTWB9l1hpr6hJ3KPUAT1ZsCQq1T_L-wAc0XNI13CokECIO',
-  'davood@resigntrack.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAx00e0JA3DjVmVcgIHzfND6gfG4t4cu97HdNYF7ZOVvVstX20sxZHtLzlpKnfYiBsXIjB4uU3VfhdG65Rt6I8WYGRD7F0FnHPXxJwfepy26l7wqbWetRZxfW9ohMZgkOIdJRgZ0sglqWH7M_Qc2o9PfXmWLGoEBth14r4gViMPyoB26k3mNvyyNFBi5POm_bzbEylNrQ-YZ47Uj7X4Qbb6RvxgsLjTzbmbBtKWrU1HyIjx9uxB4H2O52VjuFe9KY38t-Tsw2xPcDnw',
-  'amal@resigntrack.com': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDp0nZai5ic4toQDoBtjQMrJAivFopGgH1jUAiVLTq_f5BYy-h3wFlaFs5J4UbwnVCrsJq0botwTQJjwp2C0nmfYGZpAAnIKNtQ_HinjPlMfoJOSLS5vNH7Wc0SMgDlN0uVBX5eT3FMlBiMriatn2t8niS9dANx1nnFgG1AzsHoO3ZvLZbYgqqmAqe2jJm7v3pvGBo30hvCx4XR-p1rPBIfyAsZe5-lyFSEwHyGjg7Xcmy8jUsgVV4Uq4Wr5V4YV4ff4T5Qha0HGRM'
-};
-
 const getAvatarUrl = (email) => {
-  return defaultImages[email] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDp0nZai5ic4toQDoBtjQMrJAivFopGgH1jUAiVLTq_f5BYy-h3wFlaFs5J4UbwnVCrsJq0botwTQJjwp2C0nmfYGZpAAnIKNtQ_HinjPlMfoJOSLS5vNH7Wc0SMgDlN0uVBX5eT3FMlBiMriatn2t8niS9dANx1nnFgG1AzsHoO3ZvLZbYgqqmAqe2jJm7v3pvGBo30hvCx4XR-p1rPBIfyAsZe5-lyFSEwHyGjg7Xcmy8jUsgVV4Uq4Wr5V4YV4ff4T5Qha0HGRM';
+  const name = email ? email.split('@')[0] : 'User';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00dbe9&color=0f172a&bold=true&size=128`;
 };
 
 const getDisplayStatus = (req) => {

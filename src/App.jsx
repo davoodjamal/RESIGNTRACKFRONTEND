@@ -33,7 +33,6 @@ import {
   fetchNotifications,
   markNotificationRead,
   markAllNotificationsRead
-  submitExitInterview
 } from './api';
 
 function App() {
@@ -120,7 +119,6 @@ function App() {
     const loadData = async () => {
       try {
         const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData, notificationsData] = await Promise.all([
-        const [settingsData, resignationsData, logsData, profileData] = await Promise.all([
           fetchSettings(),
           fetchResignations(),
           fetchAuditLogs(),
@@ -339,11 +337,6 @@ function App() {
       if (target) {
         addAuditLog(`Exit interview feedback updated for [${target.email}].`);
       }
-  const handleSaveExitInterview = async (resignationId, exitFeedback) => {
-    try {
-      const updated = await submitExitInterview(resignationId, exitFeedback);
-      setResignations(prev => prev.map(r => r.id === resignationId ? updated : r));
-      addAuditLog(`Exit interview feedback updated for [${updated.email}].`);
     } catch (err) {
       alert(err.message || 'Failed to save exit interview');
     }

@@ -52,7 +52,7 @@ export default function EditProfilePage({ user, onBack, onSaveProfile }) {
                   <img
                     alt="Profile"
                     className="h-full w-full rounded-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgQI74YAqB82dLSQR__tJX5_BpX1qP5vLExRbcVoFIqVIRFrj3abqgQ1Xox4qfYA29EC_JvKq2EE2V57T2SzyZ8TyP7jExZqVjUdMIdYaeQRPJK91YC9sRLieRN-k6K8frD4ePFn4VwkoVuLFiNNfCG7kUdGCxd2Fhls-0NVMSVpAUqAAd_mVoxHwyUOzvVO1Ds0IFYOcKG1qPh8IDiDcqExRSSVFUi8KCxMcLcp7-sI17qhsP89UapTBhP9OONjEjuCHJRsEEEC_M"
+                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || user?.username || 'Employee')}&background=00dbe9&color=0f172a&bold=true&size=128`}
                   />
                 </div>
                 <button

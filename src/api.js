@@ -482,9 +482,22 @@ export async function fetchExEmployees() {
 
 
 
-export async function submitExitInterview(resignationId, exitFeedback) {
-  return request(`${API_BASE}/resignations/${resignationId}/feedback/`, {
-    method: 'PATCH',
-    body: JSON.stringify({ exitFeedback }),
+
+
+export async function broadcastAnnouncement(title, message, expiry = 'never') {
+  return request(`${API_BASE}/announcements/broadcast/`, {
+    method: 'POST',
+    body: JSON.stringify({ title, message, expiry }),
   });
 }
+
+export async function fetchLatestAnnouncement() {
+  return request(`${API_BASE}/announcements/latest/`);
+}
+
+export async function deleteActiveAnnouncement() {
+  return request(`${API_BASE}/announcements/active/`, {
+    method: 'DELETE',
+  });
+}
+

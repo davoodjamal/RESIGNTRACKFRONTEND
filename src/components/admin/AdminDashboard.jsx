@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Icon from '../Icon';
-import { fetchDashboardMetrics, fetchSystemHealth } from '../../api';
+import { fetchDashboardMetrics, fetchSystemHealth, broadcastAnnouncement, fetchLatestAnnouncement, deleteActiveAnnouncement } from '../../api';
 
 const formatLastUpdated = (date) => {
   const hours = date.getHours();
@@ -27,22 +27,7 @@ export default function AdminDashboard({ users }) {
   const [message, setMessage] = useState('');
   const [expiry, setExpiry] = useState('never');
 
-  const [announcement, setAnnouncement] = useState(() => {
-    try {
-      const saved = localStorage.getItem('admin_announcement');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.expiryTime && new Date().getTime() > parsed.expiryTime) {
-          localStorage.removeItem('admin_announcement');
-          return null;
-        }
-        return parsed;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return null;
-  });
+  const [announcement, setAnnouncement] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -50,9 +35,10 @@ export default function AdminDashboard({ users }) {
       try {
         setLoading(true);
         setHealthLoading(true);
-        const [metricsRes, healthRes] = await Promise.all([
+        const [metricsRes, healthRes, announcementRes] = await Promise.all([
           fetchDashboardMetrics(),
-          fetchSystemHealth()
+          fetchSystemHealth(),
+          fetchLatestAnnouncement().catch(() => null)
         ]);
         if (active) {
           if (metricsRes && metricsRes.success) {
@@ -60,6 +46,9 @@ export default function AdminDashboard({ users }) {
           }
           if (healthRes && healthRes.success) {
             setHealth(healthRes.data);
+          }
+          if (announcementRes) {
+            setAnnouncement(announcementRes);
           }
           setLastUpdated(formatLastUpdated(new Date()));
         }
@@ -81,45 +70,32 @@ export default function AdminDashboard({ users }) {
     };
   }, []);
 
-  const handleCreate = (e) => {
+
+  const handleCreate = async (e) => {
     e.preventDefault();
     if (!title || !message) return;
 
-    let expiryTime = null;
-    const now = new Date().getTime();
-    if (expiry === '1h') {
-      expiryTime = now + 60 * 60 * 1000;
-    } else if (expiry === '24h') {
-      expiryTime = now + 24 * 60 * 60 * 1000;
-    } else if (expiry === '7d') {
-      expiryTime = now + 7 * 24 * 60 * 60 * 1000;
+    try {
+      const newAnn = await broadcastAnnouncement(title, message, expiry);
+      setAnnouncement(newAnn);
+      setShowModal(false);
+      setTitle('');
+      setMessage('');
+      setExpiry('never');
+    } catch (err) {
+      console.error('Failed to broadcast announcement to backend:', err);
+      alert('Failed to broadcast announcement to backend: ' + err.message);
     }
-
-    const newAnnouncement = {
-      title,
-      message,
-      expiry,
-      expiryTime,
-      timestamp: new Date().toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
-
-    setAnnouncement(newAnnouncement);
-    localStorage.setItem('admin_announcement', JSON.stringify(newAnnouncement));
-    setShowModal(false);
-
-    setTitle('');
-    setMessage('');
-    setExpiry('never');
   };
 
-  const handleDelete = () => {
-    setAnnouncement(null);
-    localStorage.removeItem('admin_announcement');
+  const handleDelete = async () => {
+    try {
+      await deleteActiveAnnouncement();
+      setAnnouncement(null);
+    } catch (err) {
+      console.error('Failed to delete announcement:', err);
+      alert('Failed to delete announcement: ' + err.message);
+    }
   };
 
   return (
@@ -235,7 +211,14 @@ export default function AdminDashboard({ users }) {
               <h3 className="text-xl font-bold text-[#e4e1e9]">{announcement.title}</h3>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-[#b9cacb]">{announcement.timestamp}</span>
+              <span className="text-xs text-[#b9cacb]">
+                {announcement.timestamp || new Date(announcement.created_at).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
               <button
                 onClick={handleDelete}
                 className="p-1 text-[#b9cacb] hover:text-[#ffb4ab] hover:bg-[#2a292f] rounded transition-all active:scale-95"

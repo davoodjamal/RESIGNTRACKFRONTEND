@@ -13,6 +13,7 @@ export default function ExEmployeeDirectory() {
   const [loading, setLoading] = useState(true);
   const [departureFilter, setDepartureFilter] = useState('All Time');
   const [reasonFilter, setReasonFilter] = useState('All Reasons');
+  const [reasons, setReasons] = useState([]);
 
   useEffect(() => {
     async function loadData() {
@@ -22,6 +23,9 @@ export default function ExEmployeeDirectory() {
           setEmployees(res.employees || []);
           if (res.insights) {
             setInsights(res.insights);
+          }
+          if (res.reasons) {
+            setReasons(res.reasons);
           }
         }
       } catch (err) {
@@ -36,20 +40,34 @@ export default function ExEmployeeDirectory() {
     return () => clearInterval(interval);
   }, []);
 
+  const uniqueReasons = reasons && reasons.length > 0
+    ? reasons
+    : Array.from(
+        new Set(
+          employees
+            .map(emp => emp.exitReason)
+            .filter(reason => reason && reason.trim() !== '')
+        )
+      ).sort();
+
   const filteredEmployees = employees.filter(emp => {
     // Reason filter
     if (reasonFilter !== 'All Reasons') {
-      const exitLower = (emp.exitReason || '').toLowerCase();
-      if (reasonFilter === 'Voluntary') {
-        const involuntaryReasons = ['layoff', 'fired', 'termination', 'involuntary', 'performance'];
-        if (involuntaryReasons.some(r => exitLower.includes(r))) return false;
-      } else if (reasonFilter === 'Involuntary') {
-        const involuntaryReasons = ['layoff', 'fired', 'termination', 'involuntary', 'performance'];
-        if (!involuntaryReasons.some(r => exitLower.includes(r))) return false;
-      } else {
-        if (!exitLower.includes(reasonFilter.toLowerCase())) return false;
-      }
+      if (emp.exitReason !== reasonFilter) return false;
     }
+    
+    // Departure date filter
+    if (departureFilter !== 'All Time') {
+      const departureDate = new Date(emp.departureDate);
+      const now = new Date();
+      const diffTime = Math.abs(now - departureDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (departureFilter === 'Last 30 Days' && diffDays > 30) return false;
+      if (departureFilter === 'Last 6 Months' && diffDays > 180) return false;
+      if (departureFilter === 'Last Year' && diffDays > 365) return false;
+    }
+    
     return true;
   });
 
@@ -83,10 +101,10 @@ export default function ExEmployeeDirectory() {
                 onChange={(e) => setReasonFilter(e.target.value)}
                 className="bg-[#131318] border border-[#3b494b] rounded-lg px-4 h-[40px] text-sm focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none min-w-[180px]"
               >
-                <option>All Reasons</option>
-                <option>Voluntary</option>
-                <option>Involuntary</option>
-                <option>Retirement</option>
+                <option value="All Reasons">All Reasons</option>
+                {uniqueReasons.map((reason) => (
+                  <option key={reason} value={reason}>{reason}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -170,6 +188,10 @@ export default function ExEmployeeDirectory() {
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#b9cacb]">Departure Date</span>
                       <span className="text-[#e4e1e9] font-medium">{emp.departureDate}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-[#b9cacb]">Exit Reason</span>
+                      <span className="text-[#e4e1e9] font-medium">{emp.exitReason}</span>
                     </div>
                   </div>
                 </div>

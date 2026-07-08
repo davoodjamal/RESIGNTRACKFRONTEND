@@ -272,14 +272,14 @@ export default function ResignationReview({
             <h3 className="text-xl font-semibold mb-6 relative z-10">Assigned Stakeholders</h3>
             <div className="space-y-4 relative z-10">
               <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-[#1f1f24]/10 transition-colors">
-                <img alt="Sarah Jenkins" className="w-10 h-10 rounded-lg border border-white/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaewbGuMndcVJweMKo1DJPxNqnuLgUHGUu_tQG0AHJ6ze5VKtlGmVLpuRst_Ec0DARSx-wRxJPPdoSq47UDiYF8F4kvTHumYk3SyI-OOOI2P9o75Rq5tKWTVB38e_Lt9-edKsOnpv1n5pnfwwFwKE7SOI1rW9apfsAFBxQH-ii27TOVQQPKV3ENCQl2UTJ03D0W5RAxcNiwek5LtaKiLrF7UVmXqz13ltSFOe9u1uR_SAcdfBOzwUumNmpRRGYWHZvzR6PgmNmr1cx" />
+                <img alt="Sarah Jenkins" className="w-10 h-10 rounded-lg border border-white/30" src="https://ui-avatars.com/api/?name=Sarah+Jenkins&background=0f172a&color=00dbe9&bold=true&size=128" />
                 <div>
                   <p className="text-xs font-bold">Sarah Jenkins</p>
                   <p className="text-[10px] opacity-80 uppercase">Primary HR Case Manager</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-[#1f1f24]/10 transition-colors">
-                <img alt="David Chen" className="w-10 h-10 rounded-lg border border-white/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXB35R0uvbx_FKh7OG7ZdGEFNxUNDHQl_t3l1NS0AdR4bciV-8Dnz05WhnWF_a_tb-a7wmChCgs_cfsjpfepqAGhaIGv9kRuOraYnldKRD_0oZu_wYkUwNRPS1eNldm9n2BEn9_AbaBb0MMUlcC8ptorT3G_vIyxx8coK-qaxOqAbqbXTMRhTRmxI_M0BPKre7Oz6VFdurx-r_VwTMJW9-mVeFm8fIRYUDV6c4xH_vqbUICMJ3U54eP8f3TTUNY5t4AVFLBPSChGwxZ_" />
+                <img alt="David Chen" className="w-10 h-10 rounded-lg border border-white/30" src="https://ui-avatars.com/api/?name=David+Chen&background=0f172a&color=00dbe9&bold=true&size=128" />
                 <div>
                   <p className="text-xs font-bold">David Chen</p>
                   <p className="text-[10px] opacity-80 uppercase">IT Offboarding Lead</p>

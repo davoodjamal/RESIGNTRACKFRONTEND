@@ -88,7 +88,7 @@ export default function Login({ onLoginSuccess, users = [] }) {
         <div className="bg-[#0e0e13] login-card rounded-xl p-stack-lg md:p-10">
           <div className="mb-stack-lg">
             <h2 className="text-[20px] leading-7 font-semibold text-[#e4e1e9] mb-unit">Welcome</h2>
-            <p className="text-xs leading-[18px] text-[#b9cacb]">            
+            <p className="text-xs leading-[18px] text-[#b9cacb]">
               Enter your credentials to access the resignation management system.
             </p>
           </div>
@@ -108,9 +108,8 @@ export default function Login({ onLoginSuccess, users = [] }) {
                       onChange={() => handleRoleChange(item)}
                     />
                     <div
-                      className={`flex items-center justify-center py-2 rounded text-xs leading-4 tracking-[0.05em] font-semibold cursor-pointer transition-all hover:bg-[#00dbe9]/5 ${
-                        role === item ? 'bg-[#00dbe9] text-[#00363a]' : 'text-[#b9cacb]'
-                      }`}
+                      className={`flex items-center justify-center py-2 rounded text-xs leading-4 tracking-[0.05em] font-semibold cursor-pointer transition-all hover:bg-[#00dbe9]/5 ${role === item ? 'bg-[#00dbe9] text-[#00363a]' : 'text-[#b9cacb]'
+                        }`}
                     >
                       {roleLabels[item]}
                     </div>
@@ -130,7 +129,7 @@ export default function Login({ onLoginSuccess, users = [] }) {
                 <input
                   className="w-full pl-10 pr-4 py-3 bg-[#1f1f24] border border-[#3b494b] rounded-lg text-sm leading-5 text-[#e4e1e9] focus:outline-none focus:ring-2 focus:ring-[#00dbe9]/20 focus:border-[#00dbe9] transition-all"
                   id="email"
-                  placeholder="name@softwarecorp.com"
+                  placeholder="name@resigntrack.com"
                   required
                   type="email"
                   value={email}
@@ -197,11 +196,10 @@ export default function Login({ onLoginSuccess, users = [] }) {
             </div>
 
             <button
-              className={`w-full text-xs leading-4 tracking-[0.05em] font-semibold py-3.5 rounded-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all mt-stack-md shadow-sm ${
-                success
+              className={`w-full text-xs leading-4 tracking-[0.05em] font-semibold py-3.5 rounded-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all mt-stack-md shadow-sm ${success
                   ? 'bg-secondary-container text-on-secondary'
                   : 'bg-primary text-on-primary hover:opacity-90'
-              } disabled:cursor-wait`}
+                } disabled:cursor-wait`}
               disabled={loading || success}
               type="submit"
             >
