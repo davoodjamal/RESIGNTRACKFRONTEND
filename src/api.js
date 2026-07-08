@@ -44,7 +44,9 @@ async function request(url, options = {}) {
         errorMsg = fieldErrors.join(' | ');
       }
     }
-    throw new Error(errorMsg || `Request failed with status ${res.status}`);
+    const error = new Error(errorMsg || `Request failed with status ${res.status}`);
+    error.data = data;
+    throw error;
   }
 
   if (res.status === 204) {

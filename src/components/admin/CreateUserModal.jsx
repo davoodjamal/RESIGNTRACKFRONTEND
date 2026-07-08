@@ -129,7 +129,20 @@ export default function CreateUserModal({ onClose, onRefreshUsers, onNavigateUse
       await createUser(payload);
       setStep('success');
     } catch (error) {
-      setApiError(error.message || 'Unable to create user. Please try again.');
+      if (error.data && typeof error.data === 'object' && !error.data.detail && !error.data.error) {
+        const nextErrors = {};
+        for (const [key, value] of Object.entries(error.data)) {
+          const fieldName = key === 'full_name' ? 'fullName' : key;
+          if (Array.isArray(value)) {
+            nextErrors[fieldName] = value.join(', ');
+          } else {
+            nextErrors[fieldName] = value;
+          }
+        }
+        setErrors(nextErrors);
+      } else {
+        setApiError(error.message || 'Unable to create user. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
