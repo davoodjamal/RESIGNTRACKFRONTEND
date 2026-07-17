@@ -2,12 +2,6 @@ import { useState } from 'react';
 import HelpModal from './HelpModal';
 import { login } from '../api';
 
-const credentials = {
-  employee: { email: 'employee@resigntrack.com', password: 'employee123' },
-  hr: { email: 'hr@resigntrack.com', password: 'hr123' },
-  admin: { email: 'admin@resigntrack.com', password: 'admin123' }
-};
-
 const roleLabels = {
   employee: 'Employee',
   hr: 'HR Manager',
@@ -19,24 +13,16 @@ const officeImage =
 
 export default function Login({ onLoginSuccess, users = [] }) {
   const [role, setRole] = useState('employee');
-  const [email, setEmail] = useState(credentials.employee.email);
-  const [password, setPassword] = useState(credentials.employee.password);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  const getRoleCredentials = (selectedRole) => {
-    const storedUser = users.find((item) => item.role === selectedRole);
-    return storedUser || credentials[selectedRole];
-  };
-
   const handleRoleChange = (selectedRole) => {
-    const targetCredentials = getRoleCredentials(selectedRole);
     setRole(selectedRole);
-    setEmail(targetCredentials.email);
-    setPassword(targetCredentials.password);
     setError('');
     setSuccess(false);
   };
@@ -97,7 +83,7 @@ export default function Login({ onLoginSuccess, users = [] }) {
             <div className="space-y-unit mb-stack-md">
               <label className="text-xs leading-[18px] font-bold text-[#e4e1e9]">Select Role</label>
               <div className="flex p-1 bg-[#1f1f24] border border-[#3b494b] rounded-lg gap-1">
-                {Object.keys(credentials).map((item) => (
+                {Object.keys(roleLabels).map((item) => (
                   <label key={item} className="flex-1">
                     <input
                       checked={role === item}

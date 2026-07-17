@@ -313,7 +313,8 @@ export async function fetchAdminAuditLogs(params = {}) {
 }
 
 export function getAuditLogsStreamUrl() {
-  return `${API_BASE}/v1/admin/audit-logs/stream/`;
+  const token = localStorage.getItem('access_token');
+  return `${API_BASE}/v1/admin/audit-logs/stream/${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 }
 
 // ─── Analytics Individual Metrics ────────────────────────
@@ -334,7 +335,8 @@ export async function fetchSystemUsageSnapshot() {
 }
 
 export function getSystemUsageStreamUrl() {
-  return `${API_BASE}/v1/admin/analytics/system-usage/stream/`;
+  const token = localStorage.getItem('access_token');
+  return `${API_BASE}/v1/admin/analytics/system-usage/stream/${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 }
 
 // ─── Asset Management ─────────────────────────────────────
