@@ -100,8 +100,8 @@ function App() {
             designation: profileData.designation,
             address: profileData.address,
           };
-          
-          const hasChanged = 
+
+          const hasChanged =
             user.email !== updatedUser.email ||
             user.username !== updatedUser.username ||
             user.role !== updatedUser.role ||
