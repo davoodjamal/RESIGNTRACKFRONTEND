@@ -116,11 +116,37 @@ export async function fetchResignations() {
   return request(`${API_BASE}/resignations/`);
 }
 
+export async function fetchDraftResignation() {
+  return request(`${API_BASE}/resignations/draft/`);
+}
+
+export async function saveDraftResignation(data, id = null) {
+  if (id) {
+    return request(`${API_BASE}/resignations/draft/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  } else {
+    return request(`${API_BASE}/resignations/draft/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+}
+
 export async function submitResignation(data) {
   return request(`${API_BASE}/resignations/`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+export async function fetchDashboardSummary() {
+  return request(`${API_BASE}/dashboard/`);
+}
+
+export async function fetchEmployeeResignationStatus() {
+  return request(`${API_BASE}/resignations/status/`);
 }
 
 export async function updateResignationStatus(id, status) {
@@ -225,4 +251,25 @@ export async function fetchAdminAuditLogs(params = {}) {
 
 export function getAuditLogsStreamUrl() {
   return `${API_BASE}/v1/admin/audit-logs/stream/`;
+}
+
+// ─── Analytics Individual Metrics ────────────────────────
+export async function fetchPendingApprovals() {
+  return request(`${API_BASE}/analytics/approvals/pending/`);
+}
+
+export async function fetchFailedLogins() {
+  return request(`${API_BASE}/analytics/logins/failed/`);
+}
+
+export async function fetchHourlyActivity() {
+  return request(`${API_BASE}/analytics/activity/hourly/`);
+}
+
+export async function fetchSystemUsageSnapshot() {
+  return request(`${API_BASE}/v1/admin/analytics/system-usage/snapshot/`);
+}
+
+export function getSystemUsageStreamUrl() {
+  return `${API_BASE}/v1/admin/analytics/system-usage/stream/`;
 }

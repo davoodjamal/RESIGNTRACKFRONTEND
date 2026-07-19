@@ -29,44 +29,6 @@ export default function PlatformSettings({ user }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Primary Settings */}
         <div className="lg:col-span-3 space-y-6">
-          
-          {/* Account Settings */}
-          <section className="bg-[#1f1f24]/90 backdrop-blur-md rounded-xl p-6 border border-[#c3c6d5]/50 shadow-sm">
-            <div className="flex items-center gap-3 border-b border-[#c3c6d5] pb-4 mb-6">
-              <Icon className="text-[#00dbe9] text-2xl">manage_accounts</Icon>
-              <h2 className="text-xl font-semibold text-[#e4e1e9]">Account Settings</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-medium tracking-wide text-[#b9cacb] mb-2">Admin Name</label>
-                <input
-                  name="adminName"
-                  className="w-full border border-[#c3c6d5] rounded-lg px-4 py-2 text-sm focus:border-[#00dbe9] focus:ring-1 focus:ring-[#00dbe9] outline-none transition-all h-10 bg-[#1f1f24] text-[#e4e1e9]"
-                  type="text"
-                  value={settings.adminName}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium tracking-wide text-[#b9cacb] mb-2">Email Address</label>
-                <input
-                  name="adminEmail"
-                  className="w-full border border-[#c3c6d5] rounded-lg px-4 py-2 text-sm focus:border-[#00dbe9] focus:ring-1 focus:ring-[#00dbe9] outline-none transition-all h-10 bg-[#1f1f24] text-[#e4e1e9]"
-                  type="email"
-                  value={settings.adminEmail}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="md:col-span-2 flex items-center justify-between mt-2">
-                <div>
-                  <label className="block text-xs font-medium tracking-wide text-[#b9cacb] mb-1">Assigned Role</label>
-                  <span className="inline-block bg-[#00dbe9] text-[#0b1c30] px-3 py-1 rounded-full text-xs font-medium border border-[#c3c6d5]">
-                    Super Administrator
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
 
           {/* Organization Profile */}
           <section className="bg-[#1f1f24]/90 backdrop-blur-md rounded-xl p-6 border border-[#c3c6d5]/50 shadow-sm">

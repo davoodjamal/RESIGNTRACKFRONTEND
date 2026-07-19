@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Icon from '../Icon';
+import { fetchDraftResignation, saveDraftResignation, submitResignation } from '../../api';
 
 const emergencyReasons = [
   'Medical Emergency',
@@ -16,13 +17,94 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
   const [isEmergencyRequested, setIsEmergencyRequested] = useState(false);
   const [emergencyReason, setEmergencyReason] = useState('');
   const [emergencyRemarks, setEmergencyRemarks] = useState('');
+  const [additionalFeedback, setAdditionalFeedback] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  // Requirement States
+  const [draftId, setDraftId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [submissionStatus, setSubmissionStatus] = useState('idle');
+  const [toast, setToast] = useState(null);
+
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      setLoading(true);
+      try {
+        const draft = await fetchDraftResignation();
+        if (draft) {
+          setDraftId(draft.id);
+          if (draft.reason_for_leaving) setReason(draft.reason_for_leaving);
+          if (draft.elaboration) setComments(draft.elaboration);
+          if (draft.immediate_release !== undefined) setIsEmergencyRequested(draft.immediate_release);
+          if (draft.last_working_day) setRelievingDate(draft.last_working_day);
+          if (draft.additional_feedback) setAdditionalFeedback(draft.additional_feedback);
+        }
+      } catch (err) {
+        console.log('No active draft found or error loading draft:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDraft();
+  }, []);
+
+  // Validation
+  useEffect(() => {
+    const errorsList = {};
+    if (!reason) {
+      errorsList.reason = 'Reason for leaving is required.';
+    }
+    if (!relievingDate) {
+      errorsList.relievingDate = 'Proposed last working day is required.';
+    } else {
+      const localToday = new Date();
+      const year = localToday.getFullYear();
+      const month = String(localToday.getMonth() + 1).padStart(2, '0');
+      const day = String(localToday.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+      
+      if (relievingDate < todayStr) {
+        errorsList.relievingDate = 'Last working day cannot be before the current date.';
+      }
+    }
+    setValidationErrors(errorsList);
+  }, [reason, relievingDate]);
+
+  // Toast timer
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const handleSaveDraft = async () => {
+    setLoading(true);
+    try {
+      const payload = {
+        reason_for_leaving: reason,
+        elaboration: comments,
+        immediate_release: isEmergencyRequested,
+        last_working_day: relievingDate || null,
+        additional_feedback: additionalFeedback,
+      };
+      const result = await saveDraftResignation(payload, draftId);
+      if (result && result.id) {
+        setDraftId(result.id);
+      }
+      setToast('Draft saved successfully.');
+    } catch (err) {
+      setToast(err.message || 'Failed to save draft');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!reason || !relievingDate) {
-      alert('Please fill out all required fields.');
+    if (Object.keys(validationErrors).length > 0) {
       return;
     }
     if (isEmergencyRequested && !emergencyReason) {
@@ -33,37 +115,57 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
       alert('Please provide remarks explaining your emergency request.');
       return;
     }
+
     setIsSubmitting(true);
-    setTimeout(() => {
-      onSubmitResignation({
-        email: user.email,
-        name: user.username || 'Alex Thompson',
-        department: 'Design',
-        reason,
-        submissionDate: new Date().toISOString().split('T')[0],
-        relievingDate,
-        comments,
-        status: systemSettings.autoApprove ? 'Approved' : 'Pending',
-        exitFeedback: {
-          cultureRating: 0,
-          compensationRating: 0,
-          recommend: 'neutral',
-          emergencyReleaseRequested: isEmergencyRequested,
-          emergencyReason: isEmergencyRequested ? emergencyReason : '',
-          emergencyRemarks: isEmergencyRequested ? emergencyRemarks : '',
-        }
-      });
-
-      if (isEmergencyRequested) {
-        alert('Your resignation request has been submitted successfully. The emergency release request has been forwarded to HR for review.');
-      }
-
+    setSubmissionStatus('submitting');
+    try {
+      const payload = {
+        employee_id: String(user.id || user.email || ''),
+        reason: reason,
+        last_working_day: relievingDate,
+        comments: comments,
+      };
+      const result = await submitResignation(payload);
+      setSubmissionStatus('success');
+      setToast('Resignation submitted successfully.');
+      setTimeout(() => {
+        const completeResignation = {
+          id: result.id,
+          email: user.email,
+          name: user.fullName || user.username || 'Alex Thompson',
+          department: user.designation || 'Design',
+          reason: reason,
+          submissionDate: new Date().toISOString().split('T')[0],
+          relievingDate: relievingDate,
+          comments: comments,
+          status: 'Pending',
+          exitFeedback: {
+            cultureRating: 0,
+            compensationRating: 0,
+            recommend: 'neutral',
+            emergencyReleaseRequested: isEmergencyRequested,
+            emergencyReason: isEmergencyRequested ? emergencyReason : '',
+            emergencyRemarks: isEmergencyRequested ? emergencyRemarks : '',
+          }
+        };
+        onSubmitResignation(completeResignation);
+      }, 1000);
+    } catch (err) {
+      setSubmissionStatus('error');
+      setToast(err.message || 'Failed to submit resignation');
+    } finally {
       setIsSubmitting(false);
-    }, 800);
+    }
   };
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12 animate-in fade-in slide-in-from-bottom-8 duration-500">
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 rounded-3xl bg-[#111827] border border-[#00dbe9]/20 px-6 py-4 text-sm shadow-2xl text-[#e4e1e9] animate-in fade-in duration-200">
+          {toast}
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
          <div>
             <h3 className="text-4xl font-black text-[#00dbe9] mb-3 tracking-tight">Initiate Transition</h3>
@@ -89,6 +191,7 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
                         <option key={i} value={r}>{r}</option>
                      ))}
                   </select>
+                  {validationErrors.reason && <p className="text-xs text-[#ffb4ab] mt-1">{validationErrors.reason}</p>}
                </div>
                
                <div className="space-y-2">
@@ -203,6 +306,7 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
                            className="w-full bg-[#2a292f] border border-[#3b494b] rounded-xl p-4 text-sm font-semibold focus:ring-2 focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none transition-all appearance-none"
                         />
                      </div>
+                     {validationErrors.relievingDate && <p className="text-xs text-[#ffb4ab] mt-1">{validationErrors.relievingDate}</p>}
                      <p className="text-[11px] font-medium text-[#b9cacb] italic mt-2">Note: Standard notice period is {systemSettings.noticePeriod} days.</p>
                   </div>
                </div>
@@ -216,6 +320,8 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
                   <p className="text-sm font-medium text-[#b9cacb] mb-4">How could we have better supported your growth during your tenure?</p>
                   <textarea 
                      rows="3"
+                     value={additionalFeedback}
+                     onChange={(e) => setAdditionalFeedback(e.target.value)}
                      className="w-full bg-[#2a292f] border border-[#3b494b] rounded-xl p-4 text-sm focus:ring-2 focus:ring-[#00dbe9] focus:border-[#00dbe9] outline-none transition-all resize-none"
                      placeholder="Share any suggestions or reflections..."
                   ></textarea>
@@ -223,12 +329,17 @@ export default function ResignationSubmission({ user, systemSettings, onSubmitRe
             </section>
 
             <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-4 pt-4 mt-8">
-               <button type="button" className="text-[#b9cacb] font-bold hover:text-[#00dbe9] hover:bg-[#2a292f] rounded-xl transition-colors px-6 py-3">
-                  Save as Draft
+               <button 
+                  type="button" 
+                  disabled={loading || isSubmitting}
+                  onClick={handleSaveDraft}
+                  className="text-[#b9cacb] font-bold hover:text-[#00dbe9] hover:bg-[#2a292f] rounded-xl transition-colors px-6 py-3 disabled:opacity-50"
+               >
+                  {loading ? 'Saving Draft...' : 'Save as Draft'}
                </button>
                <button 
                   type="submit" 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loading || Object.keys(validationErrors).length > 0}
                   className="px-8 py-3.5 bg-[#00dbe9] text-white font-bold rounded-xl shadow-md hover:bg-[#00dbe9] active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:active:scale-100"
                >
                   {isSubmitting ? 'Submitting Request...' : 'Review & Submit'}

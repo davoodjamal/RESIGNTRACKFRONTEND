@@ -1,8 +1,28 @@
 import { useState } from 'react';
 import Icon from '../Icon';
 
-export default function EmployeeDashboard({ user, resignation, onWithdraw }) {
+export default function EmployeeDashboard({ user, resignation, onWithdraw, systemSettings }) {
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+
+  const noticePeriod = systemSettings?.noticePeriod || 30;
+
+  const calculateDaysLeft = () => {
+    if (!resignation || !resignation.relievingDate) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const relieving = new Date(resignation.relievingDate);
+    relieving.setHours(0, 0, 0, 0);
+    const diffTime = relieving.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+  const daysLeft = calculateDaysLeft();
+
+  const progressPercentage = Math.max(0, Math.min(100, Math.round(((noticePeriod - daysLeft) / noticePeriod) * 100)));
+  const transitionProgress = resignation.status === 'Approved' ? 66 : resignation.status === 'Pending' ? 33 : 0;
+
+  const emergencyReleaseRequested = resignation.exitFeedback?.emergencyReleaseRequested || resignation.emergencyReleaseRequested;
+
   const steps = [
     { label: 'Submitted', date: resignation.submissionDate, status: 'completed', icon: 'check' },
     { label: 'Under Review', date: 'In Progress', status: resignation.status === 'Pending' ? 'active' : 'completed', icon: resignation.status === 'Pending' ? 'pending' : 'check' },
@@ -13,8 +33,8 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw }) {
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
       <div className="mb-10">
-         <h2 className="text-4xl font-black text-[#00dbe9] tracking-tight">Hello, {user.username || 'Alex Thompson'}</h2>
-         <p className="text-lg text-[#b9cacb] mt-2 font-medium">Your transition journey is <span className="text-[#00dbe9] font-bold">65% complete</span>. We're here to help you every step of the way.</p>
+         <h2 className="text-4xl font-black text-[#00dbe9] tracking-tight">Hello, {user.fullName || user.username || 'Alex Thompson'}</h2>
+         <p className="text-lg text-[#b9cacb] mt-2 font-medium">Your transition journey is <span className="text-[#00dbe9] font-bold">{transitionProgress}% complete</span>. We're here to help you every step of the way.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -29,7 +49,7 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw }) {
                   <p className="text-sm text-[#b9cacb] mt-2">Track your resignation progress and access withdrawal options from one place.</p>
                </div>
                <div className="flex items-center gap-3">
-                  {resignation.emergencyReleaseRequested && (
+                  {emergencyReleaseRequested && (
                      <span className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#ffb4ab] text-[#5c1e1a] flex items-center gap-2">
                         <Icon className="text-[16px]">warning</Icon>
                         Emergency Release
@@ -127,11 +147,11 @@ export default function EmployeeDashboard({ user, resignation, onWithdraw }) {
                <Icon className="text-[160px]">hourglass_empty</Icon>
             </div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 text-[#bec6e0] relative z-10">Notice Period Remaining</p>
-            <div className="text-[80px] font-black leading-none mb-2 relative z-10 tracking-tighter">22</div>
+            <div className="text-[80px] font-black leading-none mb-2 relative z-10 tracking-tighter">{daysLeft}</div>
             <p className="text-2xl font-semibold relative z-10 mb-10 text-[#dae2fd]">Days Left</p>
             
             <div className="w-full h-2 bg-[#1f1f24]/20 rounded-full overflow-hidden relative z-10">
-               <div className="h-full bg-[#88abff]" style={{ width: '70%' }}></div>
+               <div className="h-full bg-[#88abff]" style={{ width: `${progressPercentage}%` }}></div>
             </div>
             <p className="mt-6 text-sm font-medium text-white/70 italic relative z-10">Final Day: {resignation.relievingDate}</p>
          </div>
