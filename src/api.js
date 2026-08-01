@@ -479,12 +479,3 @@ export async function fetchExEmployees() {
 }
 
 
-
-
-
-export async function submitExitInterview(resignationId, exitFeedback) {
-  return request(`${API_BASE}/resignations/${resignationId}/feedback/`, {
-    method: 'PATCH',
-    body: JSON.stringify({ exitFeedback }),
-  });
-}

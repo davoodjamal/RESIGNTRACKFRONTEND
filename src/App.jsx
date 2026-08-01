@@ -33,7 +33,6 @@ import {
   fetchNotifications,
   markNotificationRead,
   markAllNotificationsRead
-  submitExitInterview
 } from './api';
 
 function App() {
@@ -119,8 +118,15 @@ function App() {
 
     const loadData = async () => {
       try {
-        const [settingsData, resignationsData, logsData, profileData, noticePeriodInfo, checklistData, notificationsData] = await Promise.all([
-        const [settingsData, resignationsData, logsData, profileData] = await Promise.all([
+        const [
+          settingsData,
+          resignationsData,
+          logsData,
+          profileData,
+          noticePeriodInfo,
+          checklistData,
+          notificationsData
+        ] = await Promise.all([
           fetchSettings(),
           fetchResignations(),
           fetchAuditLogs(),
@@ -129,37 +135,10 @@ function App() {
           user.role === 'employee' ? fetchChecklistTasks().catch(() => []) : Promise.resolve([]),
           fetchNotifications().catch(() => []),
         ]);
+
         setSystemSettings(settingsData);
         setResignations(resignationsData);
         setAuditLogs(logsData);
-        if (profileData) {
-          const updatedUser = {
-            ...user,
-            email: profileData.email || user.email,
-            username: profileData.username || user.username,
-            role: profileData.role || user.role,
-            fullName: profileData.fullName || profileData.full_name,
-            phone: profileData.phone,
-            dob: profileData.dob,
-            designation: profileData.designation,
-            address: profileData.address,
-          };
-          
-          const hasChanged = 
-            user.email !== updatedUser.email ||
-            user.username !== updatedUser.username ||
-            user.role !== updatedUser.role ||
-            user.fullName !== updatedUser.fullName ||
-            user.phone !== updatedUser.phone ||
-            user.dob !== updatedUser.dob ||
-            user.designation !== updatedUser.designation ||
-            user.address !== updatedUser.address;
-
-          if (hasChanged) {
-            setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-          }
-        }
 
         if (profileData) {
           const updatedUser = {
@@ -330,7 +309,7 @@ function App() {
     }
   };
 
-  const handleSaveExitInterview = async (resignationId, exitFeedback, status) => {
+  const handleSaveExitInterview = async (resignationId, exitFeedback, status = 'SUBMITTED') => {
     try {
       await submitExitInterview(resignationId, exitFeedback, status);
       const resignationsData = await fetchResignations();
@@ -339,11 +318,6 @@ function App() {
       if (target) {
         addAuditLog(`Exit interview feedback updated for [${target.email}].`);
       }
-  const handleSaveExitInterview = async (resignationId, exitFeedback) => {
-    try {
-      const updated = await submitExitInterview(resignationId, exitFeedback);
-      setResignations(prev => prev.map(r => r.id === resignationId ? updated : r));
-      addAuditLog(`Exit interview feedback updated for [${updated.email}].`);
     } catch (err) {
       alert(err.message || 'Failed to save exit interview');
     }

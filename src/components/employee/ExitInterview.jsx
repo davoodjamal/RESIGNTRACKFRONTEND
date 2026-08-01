@@ -76,22 +76,10 @@ export default function ExitInterview({ user, resignation, onSave, onSubmit }) {
          setFormData(prev => ({
             ...prev,
             reason: resignation.exitFeedback?.reason || resignation.reason || '',
-            ...resignation.exitFeedback
+            ...(resignation.exitFeedback || {})
          }));
       }
    }, [resignation]);
-  useEffect(() => {
-    if (resignation && resignation.exitFeedback) {
-      setFormData(prev => ({
-        ...prev,
-        ...resignation.exitFeedback
-      }));
-    }
-  }, [resignation]);
-
-  const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
 
    const handleChange = (field, value) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
